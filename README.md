@@ -36,7 +36,7 @@
 <p align="center" style="color:grey;"><i>Get started with Kestra in 3 minutes.</i></p>
 
 
-# Kestra Plugin Template
+# Kestra Confluence Plugin
 
 > A template for creating Kestra plugins
 
