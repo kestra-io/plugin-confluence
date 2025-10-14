@@ -49,6 +49,11 @@ dependencies {
     annotationProcessor group: "io.kestra", name: "processor", version: kestraVersion
     compileOnly group: "io.kestra", name: "core", version: kestraVersion
     compileOnly group: "io.kestra", name: "script", version: kestraVersion
+
+    implementation "com.konghq:unirest-java:3.14.4"
+    implementation "com.vladsch.flexmark:flexmark-html2md-converter:0.64.8"
+    implementation "org.json:json:20240303"
+    implementation "org.apache.commons:commons-lang3:3.14.0"
 }
 
 
