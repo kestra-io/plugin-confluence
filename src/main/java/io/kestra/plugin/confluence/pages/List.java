@@ -50,7 +50,7 @@ import java.util.stream.Collectors;
 
                 tasks:
                     - id: 1
-                      type: io.kestra.plugin.confluence.List
+                      type: io.kestra.plugin.confluence.pages.List
                       serverUrl: https://your-domain.atlassian.net
                       username: user@example.com
                       apiToken: "{{ secret('CONFLUENCE_API_TOKEN') }}"

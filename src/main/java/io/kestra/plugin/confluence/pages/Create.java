@@ -46,7 +46,7 @@ import jakarta.validation.constraints.NotNull;
 
                 tasks:
                   - id: 1
-                    type: io.kestra.plugin.confluence.Create
+                    type: io.kestra.plugin.confluence.pages.Create
                     serverUrl: https://your-domain.atlassian.net
                     username: your-email@example.com
                     apiToken: {{ secret('CONFLUENCE_API_TOKEwN') }}

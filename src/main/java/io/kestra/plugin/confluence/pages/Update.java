@@ -44,7 +44,7 @@ import com.vladsch.flexmark.util.data.MutableDataSet;
 
                 tasks:
                     - id: 1
-                      type: io.kestra.plugin.confluence.Update
+                      type: io.kestra.plugin.confluence.pages.Update
                       serverUrl: https://your-domain.atlassian.net
                       username: user@example.com
                       apiToken: "{{ secret('CONFLUENCE_API_TOKEN') }}"

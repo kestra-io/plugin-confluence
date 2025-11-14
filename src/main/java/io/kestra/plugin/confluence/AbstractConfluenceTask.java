@@ -15,7 +15,7 @@ import lombok.experimental.SuperBuilder;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-public class AbstractConfluenceTask extends Task {
+public abstract class AbstractConfluenceTask extends Task {
     @Schema(
         title = "URL of the Confluence server.",
         description = "Base URL of the Confluence instance (e.g., https://your-domain.atlassian.net/wiki)."
