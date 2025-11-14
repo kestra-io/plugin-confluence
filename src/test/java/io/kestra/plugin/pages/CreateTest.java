@@ -4,7 +4,7 @@ import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.plugin.pages.Create;
+import io.kestra.plugin.confluence.pages.Create;
 import jakarta.inject.Inject;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -58,14 +58,14 @@ class CreateTest {
         HttpResponse<String> httpResponseMock = Mockito.mock(HttpResponse.class);
 
         try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
-            
+
             httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
             when(httpResponseMock.statusCode()).thenReturn(500);
             when(httpResponseMock.body()).thenReturn("{\"error\":\"boom\"}");
 
             when(httpClientMock.send(
-                any(HttpRequest.class), 
-                eq(HttpResponse.BodyHandlers.ofString()) 
+                any(HttpRequest.class),
+                eq(HttpResponse.BodyHandlers.ofString())
             )).thenReturn(httpResponseMock);
 
             assertThrows(IllegalStateException.class, () -> task.run(runContext));
@@ -89,7 +89,7 @@ class CreateTest {
 
         HttpClient httpClientMock = Mockito.mock(HttpClient.class);
         HttpResponse<String> httpResponseMock = Mockito.mock(HttpResponse.class);
-        
+
         try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
 
             httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
@@ -97,7 +97,7 @@ class CreateTest {
             when(httpResponseMock.body()).thenReturn(json);
 
             when(httpClientMock.send(
-                any(HttpRequest.class), 
+                any(HttpRequest.class),
                 eq(HttpResponse.BodyHandlers.ofString())
             )).thenReturn(httpResponseMock);
 

@@ -1,4 +1,4 @@
-package io.kestra.plugin.pages;
+package io.kestra.plugin.confluence.pages;
 
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
@@ -6,6 +6,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.models.annotations.Example;
+import io.kestra.plugin.confluence.AbstractConfluenceTask;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -40,7 +41,7 @@ import com.vladsch.flexmark.util.data.MutableDataSet;
             code = """
                 id: update-confluence-page
                 namespace: company.team
-                
+
                 tasks:
                     - id: 1
                       type: io.kestra.plugin.confluence.Update
@@ -58,29 +59,7 @@ import com.vladsch.flexmark.util.data.MutableDataSet;
         )
     }
 )
-public class Update extends Task implements RunnableTask<Update.Output> {
-
-    @Schema(
-        title = "URL of the Confluence server.",
-        description = "Base URL of the Confluence instance (e.g., https://your-domain.atlassian.net/wiki)."
-    )
-    @NotNull
-    private Property<String> serverUrl;
-
-    @Schema(
-        title = "Username (email) for authentication.",
-        description = "Confluence account email address used for API authentication."
-    )
-    @NotNull
-    private Property<String> username;
-
-    @Schema(
-        title = "Confluence API Token for authentication.",
-        description = "API token generated in Confluence (Atlassian account) used for authentication."
-    )
-    @NotNull    
-    private Property<String> apiToken;
-
+public class Update extends AbstractConfluenceTask implements RunnableTask<Update.Output> {
     @Schema(
         title = "Page ID",
         description = "The unique identifier of the page to update. Must match the path parameter `id`."
@@ -99,7 +78,7 @@ public class Update extends Task implements RunnableTask<Update.Output> {
         title = "Page Title",
         description = "The updated title of the page."
     )
-    @NotNull    
+    @NotNull
     private Property<String> title;
 
     @Schema(
@@ -174,7 +153,7 @@ public class Update extends Task implements RunnableTask<Update.Output> {
         ObjectNode  payload = jnf.objectNode();
         ObjectNode  versionNode = payload.putObject("version");
         ObjectNode body = payload.putObject("body");
-        
+
         body.put("representation", "storage");
         body.put("value", htmlBody);
 
@@ -199,7 +178,7 @@ public class Update extends Task implements RunnableTask<Update.Output> {
 
         String base = rServerUrl.endsWith("/") ? rServerUrl.substring(0, rServerUrl.length() - 1) : rServerUrl;
         String url = base + "/wiki/api/v2/pages/" + rPageId;
-    
+
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create(url))

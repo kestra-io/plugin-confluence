@@ -4,7 +4,7 @@ import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.plugin.pages.List;
+import io.kestra.plugin.confluence.pages.List;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -59,7 +59,7 @@ class ListTest {
         HttpResponse<String> httpResponseMock = Mockito.mock(HttpResponse.class);
 
         try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
-                
+
             httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
             when(httpResponseMock.statusCode()).thenReturn(500);
             when(httpResponseMock.body()).thenReturn("{\"error\":\"boom\"}");
@@ -67,9 +67,9 @@ class ListTest {
                             .when(httpClientMock)
                             .send(
                                 any(HttpRequest.class),
-                                any()                  
+                                any()
                             );
-    
+
             assertThrows(IllegalStateException.class, () -> task.run(runContext));
         }
     }
@@ -87,7 +87,7 @@ class ListTest {
             .limit(Property.ofValue(10))
             .build();
 
-        
+
         String json = "{ \"results\": [ { \"title\": \"Test Page\", \"body\": { \"storage\": { \"value\": \"<h1>Hello World</h1><p>This is a paragraph.</p>\" } } } ] }";
         HttpClient httpClientMock = Mockito.mock(HttpClient.class);
         HttpResponse<String> httpResponseMock = Mockito.mock(HttpResponse.class);
@@ -97,14 +97,14 @@ class ListTest {
             httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
 
             when(httpResponseMock.statusCode()).thenReturn(200);
-            
+
             when(httpResponseMock.body()).thenReturn(json);
 
             Mockito.doReturn(httpResponseMock)
                 .when(httpClientMock)
                 .send(
-                    any(HttpRequest.class), 
-                    any()                  
+                    any(HttpRequest.class),
+                    any()
                 );
 
             List.Output output = task.run(runContext);

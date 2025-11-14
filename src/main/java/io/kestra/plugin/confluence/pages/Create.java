@@ -1,7 +1,8 @@
-package io.kestra.plugin.pages;
+package io.kestra.plugin.confluence.pages;
 
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
+import io.kestra.plugin.confluence.AbstractConfluenceTask;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -42,7 +43,7 @@ import jakarta.validation.constraints.NotNull;
             code = """
                 id: create-confluence-page
                 namespace: company.team
-                
+
                 tasks:
                   - id: 1
                     type: io.kestra.plugin.confluence.Create
@@ -53,36 +54,14 @@ import jakarta.validation.constraints.NotNull;
                     title: My New Page from Kestra
                     markdown: |
                     # Kestra-Generated Page
-                    This page was created automatically from a Kestra flow. 
+                    This page was created automatically from a Kestra flow.
                     - List item 1
                     - List item 2
                 """
         )
     }
 )
-public class Create extends Task implements RunnableTask<Create.Output> {
-
-    @Schema(
-        title = "URL of the Confluence server.",
-        description = "Base URL of the Confluence instance (e.g., https://your-domain.atlassian.net/wiki)."
-    )
-    @NotNull
-    private Property<String> serverUrl;
-
-    @Schema(
-        title = "Username (email) for authentication.",
-        description = "Confluence account email address used for API authentication."
-    )
-    @NotNull
-    private Property<String> username;
-
-    @Schema(
-        title = "Confluence API Token for authentication.",
-        description = "API token generated in Confluence (Atlassian account) used for authentication."
-    )
-    @NotNull
-    private Property<String> apiToken;
-
+public class Create extends AbstractConfluenceTask implements RunnableTask<Create.Output> {
     @Schema(
         title = "Embedded Content",
         description = "Tags the content as embedded, which will cause it to be created in NCS. Default: false")
@@ -97,7 +76,7 @@ public class Create extends Task implements RunnableTask<Create.Output> {
         title = "Create at Root Level",
         description = "If true, the page will be created at the root level of the space (outside the space homepage tree). A value may not be supplied for the parentId parameter when this is true. Default: false")
     private Property<Boolean> rootLevel;
-    
+
     @Schema(title = "Space ID", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull
     private Property<String> spaceId;
@@ -160,7 +139,7 @@ public class Create extends Task implements RunnableTask<Create.Output> {
         HtmlRenderer renderer = HtmlRenderer.builder(options).build();
         Node document = parser.parse(rMarkdown);
         String htmlBody = renderer.render(document);
-        
+
         JsonNodeFactory jnf = JsonNodeFactory.instance;
         ObjectNode payload = jnf.objectNode();
 
@@ -179,7 +158,7 @@ public class Create extends Task implements RunnableTask<Create.Output> {
         queryParams.put("embedded", rEmbedded);
         queryParams.put("private", rMakePrivate);
         queryParams.put("root-level", rRootLevel);
-        
+
         String auth = rUsername + ":" + rApiToken;
         logger.info("auth string: {}", auth);
         String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));

@@ -1,17 +1,17 @@
-package io.kestra.plugin.pages;
+package io.kestra.plugin.confluence.pages;
 
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.common.FetchType;
+import io.kestra.plugin.confluence.AbstractConfluenceTask;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.StringUtils;
 import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.serializers.FileSerde;
@@ -47,7 +47,7 @@ import java.util.stream.Collectors;
             code = """
                 id: fetch-confluence-pages
                 namespace: company.team
-                
+
                 tasks:
                     - id: 1
                       type: io.kestra.plugin.confluence.List
@@ -58,49 +58,7 @@ import java.util.stream.Collectors;
         )
     }
 )
-public class List extends Task implements RunnableTask<List.Output> {
-
-    public enum FetchType {
-            FETCH_ONE,
-            FETCH,     
-            STORE     
-        }
-
-    private OutputChild convertPage(JsonNode pageInfo, String bodyFormat, FlexmarkHtmlConverter converter) {
-        JsonNode titleNode = pageInfo.get("title");
-        String pageTitle = (titleNode != null && !titleNode.isNull()) ? titleNode.asText() : "Untitled";
-
-        JsonNode valueNode = pageInfo.path("body").path(bodyFormat).path("value");
-
-        if (!valueNode.isMissingNode() && valueNode.isTextual()) {
-            String html = valueNode.asText();
-            String markdown = converter.convert(html);
-            return new OutputChild(pageTitle, markdown);
-        }
-        return null; 
-    }
-
-    @Schema(
-        title = "URL of the Confluence server.",
-        description = "Base URL of the Confluence instance (e.g., https://your-domain.atlassian.net/wiki)."
-    )
-    @NotNull
-    private Property<String> serverUrl;
-
-    @Schema(
-        title = "Username (email) for authentication.",
-        description = "Confluence account email address used for API authentication."
-    )
-    @NotNull
-    private Property<String> username;
-
-    @Schema(
-        title = "Confluence API Token for authentication.",
-        description = "API token generated in Confluence (Atlassian account) used for authentication."
-    )
-    @NotNull
-    private Property<String> apiToken;
-
+public class List extends AbstractConfluenceTask implements RunnableTask<List.Output> {
     @Schema(
         title = "Page IDs to filter.",
         description = "Filter results by one or more page IDs. Multiple IDs can be specified as a comma-separated list. Max items: 250."
@@ -200,10 +158,18 @@ public class List extends Task implements RunnableTask<List.Output> {
                 .collect(Collectors.joining(","));
             params.put("page-ids", pageIdsParam);
         }
-        if (rTitle != null) params.put("title", rTitle);
-        if (rSubType != null) params.put("subtype", rSubType);
-        if (rSort != null) params.put("sort", rSort);
-        if (rCursor != null) params.put("cursor", rCursor);
+        if (rTitle != null) {
+            params.put("title", rTitle);
+        }
+        if (rSubType != null) {
+            params.put("subtype", rSubType);
+        }
+        if (rSort != null) {
+            params.put("sort", rSort);
+        }
+        if (rCursor != null) {
+            params.put("cursor", rCursor);
+        }
         params.put("status", String.join(",", rStatus));
         params.put("limit", rLimit.toString());
         params.put("body-format", bodyFormat);
@@ -240,10 +206,10 @@ public class List extends Task implements RunnableTask<List.Output> {
         ObjectMapper mapper = JacksonMapper.ofJson();
         JsonNode responseJson = mapper.readTree(response.body());
         JsonNode results = responseJson.get("results");
-        
+
         File tempFile = null;
         FileOutputStream fileWriter = null;
-        
+
         if (rFetchType == FetchType.STORE) {
             tempFile = runContext.workingDir().createTempFile(".ion").toFile();
             fileWriter = new FileOutputStream(tempFile);
@@ -283,11 +249,26 @@ public class List extends Task implements RunnableTask<List.Output> {
         return outputBuilder.build();
     }
 
+    private OutputChild convertPage(JsonNode pageInfo, String bodyFormat, FlexmarkHtmlConverter converter) {
+        JsonNode titleNode = pageInfo.get("title");
+        String pageTitle = (titleNode != null && !titleNode.isNull()) ? titleNode.asText() : "Untitled";
+
+        JsonNode valueNode = pageInfo.path("body").path(bodyFormat).path("value");
+
+        if (!valueNode.isMissingNode() && valueNode.isTextual()) {
+            String html = valueNode.asText();
+            String markdown = converter.convert(html);
+            return new OutputChild(pageTitle, markdown);
+        }
+        return null;
+    }
+
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(title = "List of Confluence pages in Markdown format")
         private final java.util.List<OutputChild> children;
+
         private final URI uri;
     }
 
