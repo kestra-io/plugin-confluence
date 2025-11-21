@@ -1,8 +1,16 @@
 package io.kestra.plugin.confluence.pages;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vladsch.flexmark.html2md.converter.FlexmarkHtmlConverter;
+import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.common.FetchType;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.serializers.FileSerde;
+import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.confluence.AbstractConfluenceTask;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
@@ -11,22 +19,14 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.StringUtils;
-import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.models.annotations.Example;
-import io.kestra.core.serializers.FileSerde;
-import io.kestra.core.serializers.JacksonMapper;
-import org.slf4j.Logger;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.vladsch.flexmark.html2md.converter.FlexmarkHtmlConverter;
-import com.fasterxml.jackson.databind.JsonNode;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URI;
 import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Fetch Confluence pages",
+    title = "List Confluence pages",
     description = "Retrieves the content of one or more pages from Confluence as Markdown."
 )
 @Plugin(
@@ -49,12 +49,12 @@ import java.util.stream.Collectors;
                 namespace: company.team
 
                 tasks:
-                    - id: 1
-                      type: io.kestra.plugin.confluence.pages.List
-                      serverUrl: https://your-domain.atlassian.net
-                      username: user@example.com
-                      apiToken: "{{ secret('CONFLUENCE_API_TOKEN') }}"
-            """
+                  - id: list_pages
+                    type: io.kestra.plugin.confluence.pages.List
+                    serverUrl: https://your-domain.atlassian.net
+                    username: user@example.com
+                    apiToken: "{{ secret('CONFLUENCE_API_TOKEN') }}"
+                """
         )
     }
 )
@@ -118,7 +118,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        Logger logger = runContext.logger();
+        var logger = runContext.logger();
         FlexmarkHtmlConverter converter = FlexmarkHtmlConverter.builder().build();
         java.util.List<OutputChild> markdownPages = new ArrayList<>();
 
@@ -241,8 +241,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
             fileWriter.close();
             URI storageUri = runContext.storage().putFile(tempFile);
             outputBuilder.uri(storageUri);
-        }
-        else{
+        } else {
             outputBuilder.children(markdownPages);
         }
 

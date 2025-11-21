@@ -1,31 +1,30 @@
 package io.kestra.plugin.confluence.pages;
 
-import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.property.Property;
-import io.kestra.plugin.confluence.AbstractConfluenceTask;
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
-import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.models.tasks.Task;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.models.annotations.Example;
-import org.slf4j.Logger;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.data.MutableDataSet;
-import java.util.Map;
-import java.util.LinkedHashMap;
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.confluence.AbstractConfluenceTask;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.net.URI;
 import java.util.Base64;
-import jakarta.validation.constraints.NotNull;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @SuperBuilder
 @ToString
@@ -45,18 +44,18 @@ import jakarta.validation.constraints.NotNull;
                 namespace: company.team
 
                 tasks:
-                  - id: 1
+                  - id: create_page
                     type: io.kestra.plugin.confluence.pages.Create
                     serverUrl: https://your-domain.atlassian.net
                     username: your-email@example.com
-                    apiToken: {{ secret('CONFLUENCE_API_TOKEwN') }}
-                    spaceId: 123456
+                    apiToken: {{ secret('CONFLUENCE_API_TOKEN') }}
+                    spaceId: "123456"
                     title: My New Page from Kestra
                     markdown: |
-                    # Kestra-Generated Page
-                    This page was created automatically from a Kestra flow.
-                    - List item 1
-                    - List item 2
+                     # Kestra-Generated Page
+                     This page was created automatically from a Kestra flow.
+                     - List item 1
+                     - List item 2
                 """
         )
     }
@@ -113,7 +112,7 @@ public class Create extends AbstractConfluenceTask implements RunnableTask<Creat
 
     @Override
     public Create.Output run(RunContext runContext) throws Exception {
-        Logger logger = runContext.logger();
+        var logger = runContext.logger();
 
         String rServerUrl = runContext.render(this.serverUrl).as(String.class)
             .orElseThrow(() -> new IllegalArgumentException("serverUrl is required"));
