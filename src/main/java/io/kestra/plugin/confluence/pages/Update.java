@@ -1,29 +1,28 @@
 package io.kestra.plugin.confluence.pages;
 
-import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.models.tasks.Task;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.models.annotations.Example;
-import io.kestra.plugin.confluence.AbstractConfluenceTask;
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
-import java.util.Base64;
-import java.util.Map;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import org.slf4j.Logger;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.data.MutableDataSet;
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.confluence.AbstractConfluenceTask;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.Base64;
+import java.util.Map;
 
 @SuperBuilder
 @ToString
@@ -43,19 +42,20 @@ import com.vladsch.flexmark.util.data.MutableDataSet;
                 namespace: company.team
 
                 tasks:
-                    - id: 1
-                      type: io.kestra.plugin.confluence.pages.Update
-                      serverUrl: https://your-domain.atlassian.net
-                      username: user@example.com
-                      apiToken: "{{ secret('CONFLUENCE_API_TOKEN') }}"
-                      pageId: 12345678
-                      status: current
-                      title: New Page Title
-                      markdown: # My Updated Content\\nThis is the new content for the page.
-                      version:
-                        number: 2
-                        message: Updated content and title via Kestra.
-            """
+                  - id: update_page
+                    type: io.kestra.plugin.confluence.pages.Update
+                    serverUrl: https://your-domain.atlassian.net
+                    username: user@example.com
+                    apiToken: "{{ secret('CONFLUENCE_API_TOKEN') }}"
+                    pageId: "12345678"
+                    status: current
+                    title: New Page Title
+                    markdown: |
+                      # My Updated Content\\nThis is the new content for the page.
+                    versionInfo:
+                      number: 2
+                      message: Updated content and title via Kestra.
+                """
         )
     }
 )
@@ -114,7 +114,7 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
 
     @Override
     public Update.Output run(RunContext runContext) throws Exception {
-        Logger logger = runContext.logger();
+        var logger = runContext.logger();
 
         String rServerUrl = runContext.render(this.serverUrl).as(String.class)
             .orElseThrow(() -> new IllegalArgumentException("serverUrl is required"));
@@ -150,8 +150,8 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
         String htmlBody = renderer.render(document);
 
         JsonNodeFactory jnf = JsonNodeFactory.instance;
-        ObjectNode  payload = jnf.objectNode();
-        ObjectNode  versionNode = payload.putObject("version");
+        ObjectNode payload = jnf.objectNode();
+        ObjectNode versionNode = payload.putObject("version");
         ObjectNode body = payload.putObject("body");
 
         body.put("representation", "storage");
