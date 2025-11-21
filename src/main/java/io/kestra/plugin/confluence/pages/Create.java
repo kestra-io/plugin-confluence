@@ -52,10 +52,10 @@ import java.util.Map;
                     spaceId: "123456"
                     title: My New Page from Kestra
                     markdown: |
-                     # Kestra-Generated Page
-                     This page was created automatically from a Kestra flow.
-                     - List item 1
-                     - List item 2
+                      # Kestra-Generated Page
+                      This page was created automatically from a Kestra flow.
+                      - List item 1
+                      - List item 2
                 """
         )
     }
@@ -158,9 +158,8 @@ public class Create extends AbstractConfluenceTask implements RunnableTask<Creat
         queryParams.put("private", rMakePrivate);
         queryParams.put("root-level", rRootLevel);
 
-        String auth = rUsername + ":" + rApiToken;
-        logger.info("auth string: {}", auth);
-        String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
+        String authString = rUsername + ":" + rApiToken;
+        String encodedAuth = Base64.getEncoder().encodeToString(authString.getBytes(StandardCharsets.UTF_8));
 
         String base = rServerUrl.endsWith("/") ? rServerUrl.substring(0, rServerUrl.length() - 1) : rServerUrl;
         String url = base + "/wiki/api/v2/pages";
