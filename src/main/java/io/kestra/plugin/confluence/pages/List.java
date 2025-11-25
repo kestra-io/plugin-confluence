@@ -60,50 +60,50 @@ import java.util.stream.Collectors;
 )
 public class List extends AbstractConfluenceTask implements RunnableTask<List.Output> {
     @Schema(
-        title = "Page IDs to filter.",
+        title = "Page IDs to filter",
         description = "Filter results by one or more page IDs. Multiple IDs can be specified as a comma-separated list. Max items: 250."
     )
     private Property<java.util.@Size(max = 250) List<Integer>> pageIds;
 
     @Schema(
-        title = "Space IDs to filter.",
+        title = "Space IDs to filter",
         description = "Filter results by one or more Confluence space IDs. Multiple IDs can be specified as a comma-separated list. Max items: 100."
     )
     private Property<java.util.@Size(max = 100) List<Integer>> spaceIds;
 
     @Schema(
-        title = "Sort order of results.",
+        title = "Sort order of results",
         description = "Specify sorting of the result set. Valid values: id, -id, created-date, -created-date, modified-date, -modified-date, title, -title."
     )
     private Property<String> sort;
 
     @Schema(
-        title = "Page status filter.",
+        title = "Page status filter",
         description = "Filter the results to pages based on their status. By default, 'current' and 'archived' are used. Valid values: current, archived, deleted, trashed."
     )
     @Builder.Default
     private Property<java.util.List<String>> status = Property.ofValue(Arrays.asList("current", "archived"));
 
     @Schema(
-        title = "Page title filter.",
+        title = "Page title filter",
         description = "Filter the results to pages that exactly match this title."
     )
     private Property<String> title;
 
     @Schema(
-        title = "Page subtype filter.",
+        title = "Page subtype filter",
         description = "Filter the results based on page subtype. Valid values: live (collaborative draft/live page), page (regular page)."
     )
     private Property<String> subType;
 
     @Schema(
-        title = "Pagination cursor.",
+        title = "Pagination cursor",
         description = "Used for pagination. This opaque cursor is returned in the Link response header. Use it to fetch the next set of results."
     )
     private Property<String> cursor;
 
     @Schema(
-        title = "Maximum number of results per page.",
+        title = "Maximum number of results per page",
         description = "Limit the number of results returned per request. Default: 25, Min: 1, Max: 250."
     )
     @Builder.Default

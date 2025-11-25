@@ -44,7 +44,7 @@ This repository serves as a general template for creating a new [Kestra](https:/
 
 ![Kestra orchestrator](https://kestra.io/video.gif)
 
-## Running the project in local
+## Running the project locally
 ### Prerequisites
 - Java 21
 - Docker
@@ -66,9 +66,8 @@ Follow the README.md within the `.devcontainer` folder for a quick and easy way 
 ./gradlew shadowJar && docker build -t kestra-custom . && docker run --rm -p 8080:8080 kestra-custom server local
 ```
 > [!NOTE]
-> You need to relaunch this whole command everytime you make a change to your plugin
-
-go to http://localhost:8080, your plugin will be available to use
+> You need to relaunch this whole command every time you make a change to your plugin
+Go to http://localhost:8080; your plugin will be available to use
 
 ## Documentation
 * Full documentation can be found under: [kestra.io/docs](https://kestra.io/docs)
