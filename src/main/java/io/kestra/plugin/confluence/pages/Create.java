@@ -32,7 +32,7 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Create a Confluence Page",
+    title = "Create a Confluence page",
     description = "This task creates a new page in a Confluence space. It uses Markdown for the page content, which is automatically converted to Confluence's storage format. You can specify the page title, space, parent page, and more. This task utilizes the Confluence REST API v2."
 )
 @Plugin(
@@ -62,17 +62,17 @@ import java.util.Map;
 )
 public class Create extends AbstractConfluenceTask implements RunnableTask<Create.Output> {
     @Schema(
-        title = "Embedded Content",
-        description = "Tags the content as embedded, which will cause it to be created in NCS. Default: false")
+        title = "Embedded content",
+        description = "Marks the content as embedded so Confluence creates it in the new content service. Default: false")
     private Property<Boolean> embedded;
 
     @Schema(
-        title = "Make Page Private",
+        title = "Make page private",
         description = "If true, the page will be private. Only the user who creates the page will have permission to view and edit it. Default: false")
     private Property<Boolean> makePrivate;
 
     @Schema(
-        title = "Create at Root Level",
+        title = "Create at root level",
         description = "If true, the page will be created at the root level of the space (outside the space homepage tree). A value may not be supplied for the parentId parameter when this is true. Default: false")
     private Property<Boolean> rootLevel;
 
@@ -81,31 +81,31 @@ public class Create extends AbstractConfluenceTask implements RunnableTask<Creat
     private Property<String> spaceId;
 
     @Schema(
-        title = "Page Status",
+        title = "Page status",
         description = "The updated status of the page. Valid values: `current`, `draft`."
     )
     private Property<String> status;
 
     @Schema(
-        title = "Page title filter.",
-        description = "Filter the results to pages that exactly match this title."
+        title = "Page title",
+        description = "Title for the new Confluence page."
     )
     private Property<String> title;
 
     @Schema(
-        title = "Parent Page ID",
+        title = "Parent page ID",
         description = "The parent content ID of the page. If the 'root-level' query parameter is set to false and a value is not supplied, the space homepage's ID will be used. If the 'root-level' query parameter is set to true, a value cannot be supplied for this parameter."
     )
     private Property<String> parentId;
 
     @Schema(
-        title = "Markdown Content to Upload",
+        title = "Markdown content to upload",
         description = "The Markdown content to publish on the page."
     )
     private Property<String> markdown;
 
     @Schema(
-        title = "Page Subtype",
+        title = "Page subtype",
         description = "The subtype of the page. Provide 'live' to create a live doc, or no subtype to create a regular page. Valid values: live"
     )
     private Property<String> subtype;
@@ -191,7 +191,7 @@ public class Create extends AbstractConfluenceTask implements RunnableTask<Creat
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "The API response from Confluence.",
+            title = "The API response from Confluence",
             description = "Contains the full JSON response from the Confluence API after creating the page."
         )
         private final String value;
