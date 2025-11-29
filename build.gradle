@@ -29,7 +29,7 @@ java {
 }
 
 group = "io.kestra.plugin"
-description = 'Plugin to interact with Atlassian Confluence'
+description = 'Atlassian Confluence plugin for Kestra'
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = "UTF-8"
@@ -178,7 +178,7 @@ jar {
     manifest {
         attributes(
                 "X-Kestra-Name": project.name,
-                "X-Kestra-Title": "Confluence",
+                "X-Kestra-Title": "Atlassian Confluence",
                 "X-Kestra-Group": project.group + ".confluence",
                 "X-Kestra-Description": project.description,
                 "X-Kestra-Version": project.version
