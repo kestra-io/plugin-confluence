@@ -1,8 +1,8 @@
 group: io.kestra.plugin.confluence
 name: "confluence"
 title: "Confluence"
-description: "Plugin to interact with Atlassian Confluence"
-body: ""
+description: "Tasks that connect Kestra flows to Atlassian Confluence for creating, updating, and retrieving page content."
+body: "Use this plugin to integrate Kestra flows with Confluence via the REST API. Provide `serverUrl`, `username`, and `apiToken` for authentication; page tasks render Markdown to Confluence storage and return JSON or Markdown for downstream steps."
 videos: []
 createdBy: "Kestra Core Team"
 managedBy: "Kestra Core Team"
