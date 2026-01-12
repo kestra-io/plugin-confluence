@@ -30,7 +30,7 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Update a Confluence Page",
+    title = "Update a Confluence page",
     description = "Updates an existing page in Confluence by its ID. You can modify its title, content, parent, and other properties."
 )
 @Plugin(
@@ -68,14 +68,14 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
     private Property<String> pageId;
 
     @Schema(
-        title = "Page Status",
+        title = "Page status",
         description = "The updated status of the page. Valid values: `current`, `draft`. Changing from `current` to `draft` deletes any existing draft."
     )
     @NotNull
     private Property<String> status;
 
     @Schema(
-        title = "Page Title",
+        title = "Page title",
         description = "The updated title of the page."
     )
     @NotNull
@@ -88,7 +88,7 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
     private Property<String> spaceId;
 
     @Schema(
-        title = "Parent Page ID",
+        title = "Parent page ID",
         description = "The ID of the parent content. Allows moving the page under a different parent within the same space."
     )
     private Property<String> parentId;
@@ -106,7 +106,7 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
     private Property<String> markdown;
 
     @Schema(
-        title = "Version Information",
+        title = "Version information",
         description = "Defines version details for the page update. The `number` represents the version number, and `message` is an optional version comment."
     )
     @NotNull
@@ -205,7 +205,7 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "Update Page Output",
+            title = "Update page output",
             description = "Contains the response from the Confluence API after the update operation."
         )
         private final String value;

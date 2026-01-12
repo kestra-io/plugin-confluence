@@ -1,0 +1,8 @@
+group: io.kestra.plugin.confluence.pages
+name: "pages"
+title: "Confluence Pages"
+description: "Tasks that create, list, and update Confluence pages with Markdown rendering and metadata controls."
+body: "Use these tasks to publish or sync documentation while keeping Confluence as the source of truth; they convert Markdown to the storage format and return results as JSON, Markdown, or stored files. Each call needs Confluence credentials (`serverUrl`, `username`, `apiToken`); create/update expect page details and Markdown content (update also requires `pageId`, `status`, `title`, and `versionInfo`), and list supports filters for spaces, page IDs, titles, status, subtype, sorting, and pagination."
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
