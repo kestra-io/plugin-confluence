@@ -137,10 +137,28 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
         Map<String, Object> rVersionMap = runContext.render(this.versionInfo)
             .asMap(String.class, Object.class);
 
-        Integer numberObj = (Integer) rVersionMap.get("number");
-        String messageObj = (String) rVersionMap.get("message");
-        if (numberObj == null || messageObj == null) {
-            throw new IllegalArgumentException("versionInfo.number and versionInfo.message are required");
+        Object numberRaw = rVersionMap.get("number");
+        Object messageRaw = rVersionMap.get("message");
+
+        Integer numberObj;
+        if (numberRaw == null) {
+            throw new IllegalArgumentException("versionInfo.number is required");
+        }
+
+        if (numberRaw instanceof Number n) {
+            numberObj = n.intValue();
+        } else {
+            String s = numberRaw.toString().trim();
+            if (s.matches("^-?\\d+(\\.0+)?$")) {
+                numberObj = (int) Double.parseDouble(s);
+            } else {
+                throw new IllegalArgumentException("versionInfo.number must be an integer, got: " + s);
+            }
+        }
+
+        String messageObj = messageRaw == null ? null : messageRaw.toString();
+        if (messageObj == null || messageObj.isBlank()) {
+            throw new IllegalArgumentException("versionInfo.message is required");
         }
 
         MutableDataSet options = new MutableDataSet();
