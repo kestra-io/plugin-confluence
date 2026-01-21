@@ -117,4 +117,64 @@ class ListTest {
             assertThat(child.getMarkdown(), containsString("This is a paragraph."));
         }
     }
+
+    @Test
+    void successfulResponse_includesVersionInfo() throws Exception {
+        RunContext runContext = runContextFactory.of(Map.of());
+
+        List task = List.builder()
+            .serverUrl(Property.ofValue("https://example.com"))
+            .username(Property.ofValue("user@example.com"))
+            .apiToken(Property.ofValue("token"))
+            .limit(Property.ofValue(10))
+            .build();
+
+        String json = """
+            {
+              "results": [
+                {
+                  "title": "Test Page",
+                  "version": {
+                    "number": 19,
+                    "message": "",
+                    "minorEdit": false,
+                    "authorId": "abc",
+                    "createdAt": "2026-01-21T05:58:44.698Z"
+                  },
+                  "body": {
+                    "storage": {
+                      "value": "<h1>Hello</h1>"
+                    }
+                  }
+                }
+              ]
+            }
+            """;
+
+        HttpClient httpClientMock = Mockito.mock(HttpClient.class);
+        HttpResponse<String> httpResponseMock = Mockito.mock(HttpResponse.class);
+
+        try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
+            httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
+
+            when(httpResponseMock.statusCode()).thenReturn(200);
+            when(httpResponseMock.body()).thenReturn(json);
+
+            Mockito.doReturn(httpResponseMock)
+                .when(httpClientMock)
+                .send(any(HttpRequest.class), any());
+
+            List.Output output = task.run(runContext);
+
+            assertThat(output.getChildren(), hasSize(1));
+            List.OutputChild child = output.getChildren().get(0);
+
+            assertThat(child.getVersionInfo(), is(notNullValue()));
+            assertThat(child.getVersionInfo().get("number"), is(19));
+
+
+            assertThat(child.getRawResponse(), is(notNullValue()));
+            assertThat(child.getRawResponse().get("version"), is(notNullValue()));
+        }
+    }
 }

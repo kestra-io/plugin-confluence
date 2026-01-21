@@ -273,7 +273,6 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(title = "List of Confluence pages in Markdown format")
         private final java.util.List<OutputChild> children;
-        
 
         private final URI uri;
     }
@@ -286,5 +285,13 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
 
         @Schema(title = "Markdown content")
         private final String markdown;
+
+        @Schema(
+            title = "Version information"
+        )
+        private final Map<String, Object> versionInfo;
+
+        @Schema(title = "Raw response from Confluence")
+        private final Map<String, Object> rawResponse;
     }
 }
