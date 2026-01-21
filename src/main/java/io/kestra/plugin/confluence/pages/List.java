@@ -250,6 +250,12 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
 
     private OutputChild convertPage(JsonNode pageInfo, String bodyFormat, FlexmarkHtmlConverter converter) {
         JsonNode titleNode = pageInfo.get("title");
+        JsonNode versionNode = pageInfo.path("version");
+
+        Map<String, Object> versionInfo = versionNode.isMissingNode() ? null : JacksonMapper.ofJson().convertValue(versionNode, Map.class);
+
+        Map<String, Object> rawMap = JacksonMapper.ofJson().convertValue(pageInfo, Map.class);
+
         String pageTitle = (titleNode != null && !titleNode.isNull()) ? titleNode.asText() : "Untitled";
 
         JsonNode valueNode = pageInfo.path("body").path(bodyFormat).path("value");
@@ -257,7 +263,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         if (!valueNode.isMissingNode() && valueNode.isTextual()) {
             String html = valueNode.asText();
             String markdown = converter.convert(html);
-            return new OutputChild(pageTitle, markdown);
+            return new OutputChild(pageTitle, markdown, versionInfo ,rawMap);
         }
         return null;
     }
@@ -267,6 +273,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(title = "List of Confluence pages in Markdown format")
         private final java.util.List<OutputChild> children;
+        
 
         private final URI uri;
     }
