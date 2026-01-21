@@ -249,12 +249,12 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         return outputBuilder.build();
     }
 
+    @SuppressWarnings("unchecked")
     private OutputChild convertPage(JsonNode pageInfo, String bodyFormat, FlexmarkHtmlConverter converter) {
         JsonNode titleNode = pageInfo.get("title");
-        JsonNode versionNode = pageInfo.path("version");
 
-        Map<String, Object> versionInfo = versionNode.isMissingNode() ? null : MAPPER.convertValue(versionNode, Map.class);
         Map<String, Object> rawMap = MAPPER.convertValue(pageInfo, Map.class);
+        Map<String, Object> versionInfo = (Map<String, Object>) rawMap.get("version");
 
         String pageTitle = (titleNode != null && !titleNode.isNull()) ? titleNode.asText() : "Untitled";
 
