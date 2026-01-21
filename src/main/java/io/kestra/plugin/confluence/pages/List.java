@@ -59,6 +59,7 @@ import java.util.stream.Collectors;
     }
 )
 public class List extends AbstractConfluenceTask implements RunnableTask<List.Output> {
+    private static final ObjectMapper MAPPER = JacksonMapper.ofJson();
     @Schema(
         title = "Page IDs to filter",
         description = "Filter results by one or more page IDs. Multiple IDs can be specified as a comma-separated list. Max items: 250."
@@ -252,9 +253,8 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         JsonNode titleNode = pageInfo.get("title");
         JsonNode versionNode = pageInfo.path("version");
 
-        Map<String, Object> versionInfo = versionNode.isMissingNode() ? null : JacksonMapper.ofJson().convertValue(versionNode, Map.class);
-
-        Map<String, Object> rawMap = JacksonMapper.ofJson().convertValue(pageInfo, Map.class);
+        Map<String, Object> versionInfo = versionNode.isMissingNode() ? null : MAPPER.convertValue(versionNode, Map.class);
+        Map<String, Object> rawMap = MAPPER.convertValue(pageInfo, Map.class);
 
         String pageTitle = (titleNode != null && !titleNode.isNull()) ? titleNode.asText() : "Untitled";
 
