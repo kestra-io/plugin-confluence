@@ -17,22 +17,22 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 public abstract class AbstractConfluenceTask extends Task {
     @Schema(
-        title = "URL of the Confluence server.",
-        description = "Base URL of the Confluence instance (e.g., https://your-domain.atlassian.net/wiki)."
+        title = "Set Confluence site URL",
+        description = "Base Confluence site URL (e.g., https://your-domain.atlassian.net) without a trailing slash; /wiki/api/v2 is appended automatically."
     )
     @NotNull
     protected Property<String> serverUrl;
 
     @Schema(
-        title = "Username (email) for authentication.",
-        description = "Confluence account email address used for API authentication."
+        title = "Authentication username (email)",
+        description = "Confluence account email used for Basic authentication; render from secrets where possible."
     )
     @NotNull
     protected Property<String> username;
 
     @Schema(
-        title = "Confluence API Token for authentication.",
-        description = "API token generated in Confluence (Atlassian account) used for authentication."
+        title = "API token for Basic auth",
+        description = "Atlassian API token associated with the username; keep in a secret and avoid logging."
     )
     @NotNull
     protected Property<String> apiToken;
