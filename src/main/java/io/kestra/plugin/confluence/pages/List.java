@@ -59,6 +59,7 @@ import java.util.stream.Collectors;
     }
 )
 public class List extends AbstractConfluenceTask implements RunnableTask<List.Output> {
+    private static final ObjectMapper MAPPER = JacksonMapper.ofJson();
     @Schema(
         title = "Page IDs to filter",
         description = "Filter results by one or more page IDs. Multiple IDs can be specified as a comma-separated list. Max items: 250."
@@ -248,8 +249,13 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         return outputBuilder.build();
     }
 
+    @SuppressWarnings("unchecked")
     private OutputChild convertPage(JsonNode pageInfo, String bodyFormat, FlexmarkHtmlConverter converter) {
         JsonNode titleNode = pageInfo.get("title");
+
+        Map<String, Object> rawMap = MAPPER.convertValue(pageInfo, Map.class);
+        Map<String, Object> versionInfo = (Map<String, Object>) rawMap.get("version");
+
         String pageTitle = (titleNode != null && !titleNode.isNull()) ? titleNode.asText() : "Untitled";
 
         JsonNode valueNode = pageInfo.path("body").path(bodyFormat).path("value");
@@ -257,7 +263,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         if (!valueNode.isMissingNode() && valueNode.isTextual()) {
             String html = valueNode.asText();
             String markdown = converter.convert(html);
-            return new OutputChild(pageTitle, markdown);
+            return new OutputChild(pageTitle, markdown, versionInfo ,rawMap);
         }
         return null;
     }
@@ -279,5 +285,13 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
 
         @Schema(title = "Markdown content")
         private final String markdown;
+
+        @Schema(
+            title = "Version information"
+        )
+        private final Map<String, Object> versionInfo;
+
+        @Schema(title = "Raw response from Confluence")
+        private final Map<String, Object> rawResponse;
     }
 }
