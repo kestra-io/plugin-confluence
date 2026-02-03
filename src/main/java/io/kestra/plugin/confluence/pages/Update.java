@@ -30,8 +30,8 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Update a Confluence page",
-    description = "Updates an existing page in Confluence by its ID. You can modify its title, content, parent, and other properties."
+    title = "Update Confluence page content",
+    description = "Updates an existing page by ID through REST API v2. Renders Markdown to Confluence storage HTML, bumps the page version using versionInfo, and supports title/status/parent/owner updates within the same space."
 )
 @Plugin(
     examples = {
@@ -62,52 +62,52 @@ import java.util.Map;
 public class Update extends AbstractConfluenceTask implements RunnableTask<Update.Output> {
     @Schema(
         title = "Page ID",
-        description = "The unique identifier of the page to update. Must match the path parameter `id`."
+        description = "Confluence page identifier to update; used in the request path."
     )
     @NotNull
     private Property<String> pageId;
 
     @Schema(
         title = "Page status",
-        description = "The updated status of the page. Valid values: `current`, `draft`. Changing from `current` to `draft` deletes any existing draft."
+        description = "Required page status. Valid values: `current`, `draft`. Changing from current to draft deletes any existing draft."
     )
     @NotNull
     private Property<String> status;
 
     @Schema(
         title = "Page title",
-        description = "The updated title of the page."
+        description = "Updated page title."
     )
     @NotNull
     private Property<String> title;
 
     @Schema(
         title = "Space ID",
-        description = "The ID of the containing space. Moving a page to another space is not supported."
+        description = "ID of the containing space; must stay within the current space because cross-space moves are not supported."
     )
     private Property<String> spaceId;
 
     @Schema(
         title = "Parent page ID",
-        description = "The ID of the parent content. Allows moving the page under a different parent within the same space."
+        description = "Parent content ID for re-parenting within the same space."
     )
     private Property<String> parentId;
 
     @Schema(
         title = "Owner Account ID",
-        description = "The account ID of the page owner. Used to transfer ownership to another user."
+        description = "Account ID of the page owner; transfers ownership to another user."
     )
     private Property<String> ownerId;
 
     @Schema(title = "Markdown content to upload",
-        description = "The Markdown content to publish on the page."
+        description = "Markdown rendered to Confluence storage HTML before sending to the API."
     )
     @NotNull
     private Property<String> markdown;
 
     @Schema(
         title = "Version information",
-        description = "Defines version details for the page update. The `number` represents the version number, and `message` is an optional version comment."
+        description = "Required version payload. Must include `number` (integer) and `message` (non-blank comment) for the new version."
     )
     @NotNull
     private Property<Map<String, Object>> versionInfo;
@@ -224,7 +224,7 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
             title = "Update page output",
-            description = "Contains the response from the Confluence API after the update operation."
+            description = "Raw JSON response returned by Confluence after the update."
         )
         private final String value;
     }

@@ -37,8 +37,8 @@ import java.util.stream.Collectors;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "List Confluence pages",
-    description = "Retrieves the content of one or more pages from Confluence as Markdown."
+    title = "List Confluence pages as Markdown",
+    description = "Retrieves pages via REST API v2, converts storage HTML to Markdown, and supports filtering by space, page, status, subtype, or title. Default limit is 25 with statuses current and archived; FETCH_ONE forces limit 1, and STORE writes results to internal storage."
 )
 @Plugin(
     examples = {
@@ -62,13 +62,13 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
     private static final ObjectMapper MAPPER = JacksonMapper.ofJson();
     @Schema(
         title = "Page IDs to filter",
-        description = "Filter results by one or more page IDs. Multiple IDs can be specified as a comma-separated list. Max items: 250."
+        description = "Filter results by one or more page IDs (comma-separated). Max items: 250."
     )
     private Property<java.util.@Size(max = 250) List<Integer>> pageIds;
 
     @Schema(
         title = "Space IDs to filter",
-        description = "Filter results by one or more Confluence space IDs. Multiple IDs can be specified as a comma-separated list. Max items: 100."
+        description = "Filter results by one or more Confluence space IDs (comma-separated). Max items: 100."
     )
     private Property<java.util.@Size(max = 100) List<Integer>> spaceIds;
 
@@ -80,39 +80,39 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
 
     @Schema(
         title = "Page status filter",
-        description = "Filter the results to pages based on their status. By default, 'current' and 'archived' are used. Valid values: current, archived, deleted, trashed."
+        description = "Filter pages by status. Defaults to current and archived. Valid values: current, archived, deleted, trashed."
     )
     @Builder.Default
     private Property<java.util.List<String>> status = Property.ofValue(Arrays.asList("current", "archived"));
 
     @Schema(
         title = "Page title filter",
-        description = "Filter the results to pages that exactly match this title."
+        description = "Filter results to pages that exactly match this title."
     )
     private Property<String> title;
 
     @Schema(
         title = "Page subtype filter",
-        description = "Filter the results based on page subtype. Valid values: live (collaborative draft/live page), page (regular page)."
+        description = "Filter by page subtype. Valid values: live (collaborative draft/live page), page (regular page)."
     )
     private Property<String> subType;
 
     @Schema(
         title = "Pagination cursor",
-        description = "Used for pagination. This opaque cursor is returned in the Link response header. Use it to fetch the next set of results."
+        description = "Opaque cursor returned in the Link response header; pass it to fetch the next page of results."
     )
     private Property<String> cursor;
 
     @Schema(
         title = "Maximum number of results per page",
-        description = "Limit the number of results returned per request. Default: 25, Min: 1, Max: 250."
+        description = "Maximum results per request. Default 25; Min 1; Max 250. Overridden to 1 when fetchType is FETCH_ONE."
     )
     @Builder.Default
     private Property<@Min(1) @Max(250) Integer> limit = Property.ofValue(25);
 
     @Schema(
         title = "Fetch type",
-        description = "Type of fetch operation. Valid values: FETCH, FETCH_ONE, STORE."
+        description = "Determines how results are returned. FETCH returns a list, FETCH_ONE limits to the first page, STORE writes all pages to internal storage and returns a URI. Default: FETCH."
     )
     @Builder.Default
     private Property<FetchType> fetchType = Property.ofValue(FetchType.FETCH);
@@ -271,9 +271,16 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "List of Confluence pages in Markdown format")
+        @Schema(
+            title = "Confluence pages",
+            description = "List of fetched pages with title, Markdown body, version info, and raw payload."
+        )
         private final java.util.List<OutputChild> children;
 
+        @Schema(
+            title = "Stored results URI",
+            description = "Kestra internal storage URI holding serialized pages when fetchType is STORE."
+        )
         private final URI uri;
     }
 
@@ -287,11 +294,15 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         private final String markdown;
 
         @Schema(
-            title = "Version information"
+            title = "Version information",
+            description = "Version map returned by Confluence, including version number and message."
         )
         private final Map<String, Object> versionInfo;
 
-        @Schema(title = "Raw response from Confluence")
+        @Schema(
+            title = "Raw response from Confluence",
+            description = "Full page payload returned by Confluence, including metadata and body."
+        )
         private final Map<String, Object> rawResponse;
     }
 }
