@@ -1,25 +1,5 @@
 package io.kestra.plugin.confluence.pages;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.vladsch.flexmark.html2md.converter.FlexmarkHtmlConverter;
-import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.models.tasks.common.FetchType;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.FileSerde;
-import io.kestra.core.serializers.JacksonMapper;
-import io.kestra.plugin.confluence.AbstractConfluenceTask;
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.Size;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
-import org.apache.commons.lang3.StringUtils;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URI;
@@ -30,6 +10,29 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.StringUtils;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vladsch.flexmark.html2md.converter.FlexmarkHtmlConverter;
+
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.models.tasks.common.FetchType;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.serializers.FileSerde;
+import io.kestra.core.serializers.JacksonMapper;
+import io.kestra.plugin.confluence.AbstractConfluenceTask;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 @SuperBuilder
 @ToString
@@ -177,8 +180,10 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
 
         String query = params.entrySet().stream()
             .filter(e -> StringUtils.isNotBlank(e.getValue()))
-            .map(e -> URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8)
-                + "=" + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8))
+            .map(
+                e -> URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8)
+                    + "=" + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8)
+            )
             .collect(Collectors.joining("&"));
 
         String url = rServerUrl + "/wiki/api/v2/pages";
@@ -263,7 +268,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         if (!valueNode.isMissingNode() && valueNode.isTextual()) {
             String html = valueNode.asText();
             String markdown = converter.convert(html);
-            return new OutputChild(pageTitle, markdown, versionInfo ,rawMap);
+            return new OutputChild(pageTitle, markdown, versionInfo, rawMap);
         }
         return null;
     }

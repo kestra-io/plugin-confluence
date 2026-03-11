@@ -1,16 +1,5 @@
 package io.kestra.plugin.pages;
 
-import io.kestra.core.junit.annotations.KestraTest;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.runners.RunContextFactory;
-import io.kestra.plugin.confluence.pages.Update;
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
-
 import java.io.ByteArrayOutputStream;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -20,6 +9,19 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
+
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.runners.RunContextFactory;
+import io.kestra.plugin.confluence.pages.Update;
+
+import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -45,10 +47,14 @@ class UpdateTest {
             .status(Property.ofValue("current"))
             .title(Property.ofValue("Title"))
             .markdown(Property.ofValue("# Hello"))
-            .versionInfo(Property.ofValue(Map.of(
-                "number", 2,
-                "message", "msg"
-            )))
+            .versionInfo(
+                Property.ofValue(
+                    Map.of(
+                        "number", 2,
+                        "message", "msg"
+                    )
+                )
+            )
             .build();
 
         assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
@@ -66,9 +72,13 @@ class UpdateTest {
             .status(Property.ofValue("current"))
             .title(Property.ofValue("Title"))
             .markdown(Property.ofValue("# Hello"))
-            .versionInfo(Property.ofValue(Map.of(
-                "message", "msg"
-            )))
+            .versionInfo(
+                Property.ofValue(
+                    Map.of(
+                        "message", "msg"
+                    )
+                )
+            )
             .build();
 
         assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
@@ -86,9 +96,13 @@ class UpdateTest {
             .status(Property.ofValue("current"))
             .title(Property.ofValue("Title"))
             .markdown(Property.ofValue("# Hello"))
-            .versionInfo(Property.ofValue(Map.of(
-                "number", 2
-            )))
+            .versionInfo(
+                Property.ofValue(
+                    Map.of(
+                        "number", 2
+                    )
+                )
+            )
             .build();
 
         assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
@@ -106,10 +120,14 @@ class UpdateTest {
             .status(Property.ofValue("current"))
             .title(Property.ofValue("Title"))
             .markdown(Property.ofValue("# Hello"))
-            .versionInfo(Property.ofValue(Map.of(
-                "number", 2,
-                "message", "   "
-            )))
+            .versionInfo(
+                Property.ofValue(
+                    Map.of(
+                        "number", 2,
+                        "message", "   "
+                    )
+                )
+            )
             .build();
 
         assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
@@ -127,10 +145,14 @@ class UpdateTest {
             .status(Property.ofValue("current"))
             .title(Property.ofValue("Title"))
             .markdown(Property.ofValue("# Hello"))
-            .versionInfo(Property.ofValue(Map.of(
-                "number", "four",
-                "message", "msg"
-            )))
+            .versionInfo(
+                Property.ofValue(
+                    Map.of(
+                        "number", "four",
+                        "message", "msg"
+                    )
+                )
+            )
             .build();
 
         assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
@@ -173,10 +195,14 @@ class UpdateTest {
             .status(Property.ofValue("current"))
             .title(Property.ofValue("Title"))
             .markdown(Property.ofValue("# Hello"))
-            .versionInfo(Property.ofValue(Map.of(
-                "number", 2,
-                "message", "msg"
-            )))
+            .versionInfo(
+                Property.ofValue(
+                    Map.of(
+                        "number", 2,
+                        "message", "msg"
+                    )
+                )
+            )
             .build();
 
         HttpClient httpClientMock = Mockito.mock(HttpClient.class);
@@ -188,10 +214,12 @@ class UpdateTest {
             when(httpResponseMock.statusCode()).thenReturn(500);
             when(httpResponseMock.body()).thenReturn("{\"error\":\"boom\"}");
 
-            when(httpClientMock.send(
-                any(HttpRequest.class),
-                eq(HttpResponse.BodyHandlers.ofString())
-            )).thenReturn(httpResponseMock);
+            when(
+                httpClientMock.send(
+                    any(HttpRequest.class),
+                    eq(HttpResponse.BodyHandlers.ofString())
+                )
+            ).thenReturn(httpResponseMock);
 
             assertThrows(IllegalStateException.class, () -> task.run(runContext));
         }
@@ -209,10 +237,14 @@ class UpdateTest {
             .status(Property.ofValue("current"))
             .title(Property.ofValue("Title"))
             .markdown(Property.ofValue("# Hello"))
-            .versionInfo(Property.ofValue(Map.of(
-                "number", 2,
-                "message", "msg"
-            )))
+            .versionInfo(
+                Property.ofValue(
+                    Map.of(
+                        "number", 2,
+                        "message", "msg"
+                    )
+                )
+            )
             .build();
 
         String json = "{\"id\":\"123\",\"title\":\"Title\"}";
@@ -226,10 +258,12 @@ class UpdateTest {
             when(httpResponseMock.statusCode()).thenReturn(200);
             when(httpResponseMock.body()).thenReturn(json);
 
-            when(httpClientMock.send(
-                any(HttpRequest.class),
-                eq(HttpResponse.BodyHandlers.ofString())
-            )).thenReturn(httpResponseMock);
+            when(
+                httpClientMock.send(
+                    any(HttpRequest.class),
+                    eq(HttpResponse.BodyHandlers.ofString())
+                )
+            ).thenReturn(httpResponseMock);
 
             Update.Output output = task.run(runContext);
 
@@ -250,10 +284,14 @@ class UpdateTest {
             .status(Property.ofValue("current"))
             .title(Property.ofValue("Title"))
             .markdown(Property.ofValue("# Hello"))
-            .versionInfo(Property.ofValue(Map.of(
-                "number", rawNumber,
-                "message", "msg"
-            )))
+            .versionInfo(
+                Property.ofValue(
+                    Map.of(
+                        "number", rawNumber,
+                        "message", "msg"
+                    )
+                )
+            )
             .build();
 
         HttpClient httpClientMock = Mockito.mock(HttpClient.class);
@@ -267,10 +305,12 @@ class UpdateTest {
             when(httpResponseMock.statusCode()).thenReturn(200);
             when(httpResponseMock.body()).thenReturn("{\"ok\":true}");
 
-            when(httpClientMock.send(
-                requestCaptor.capture(),
-                eq(HttpResponse.BodyHandlers.ofString())
-            )).thenReturn(httpResponseMock);
+            when(
+                httpClientMock.send(
+                    requestCaptor.capture(),
+                    eq(HttpResponse.BodyHandlers.ofString())
+                )
+            ).thenReturn(httpResponseMock);
 
             task.run(runContext);
 

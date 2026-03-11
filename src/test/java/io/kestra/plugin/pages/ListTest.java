@@ -1,18 +1,22 @@
 package io.kestra.plugin.pages;
 
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.plugin.confluence.pages.List;
+
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
-import java.util.Map;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -64,11 +68,11 @@ class ListTest {
             when(httpResponseMock.statusCode()).thenReturn(500);
             when(httpResponseMock.body()).thenReturn("{\"error\":\"boom\"}");
             Mockito.doReturn(httpResponseMock)
-                            .when(httpClientMock)
-                            .send(
-                                any(HttpRequest.class),
-                                any()
-                            );
+                .when(httpClientMock)
+                .send(
+                    any(HttpRequest.class),
+                    any()
+                );
 
             assertThrows(IllegalStateException.class, () -> task.run(runContext));
         }
@@ -86,7 +90,6 @@ class ListTest {
             .spaceIds(Property.ofValue(java.util.List.of(1)))
             .limit(Property.ofValue(10))
             .build();
-
 
         String json = "{ \"results\": [ { \"title\": \"Test Page\", \"body\": { \"storage\": { \"value\": \"<h1>Hello World</h1><p>This is a paragraph.</p>\" } } } ] }";
         HttpClient httpClientMock = Mockito.mock(HttpClient.class);
@@ -171,7 +174,6 @@ class ListTest {
 
             assertThat(child.getVersionInfo(), is(notNullValue()));
             assertThat(child.getVersionInfo().get("number"), is(19));
-
 
             assertThat(child.getRawResponse(), is(notNullValue()));
             assertThat(child.getRawResponse().get("version"), is(notNullValue()));

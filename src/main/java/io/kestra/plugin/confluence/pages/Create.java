@@ -1,22 +1,5 @@
 package io.kestra.plugin.confluence.pages;
 
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.vladsch.flexmark.html.HtmlRenderer;
-import com.vladsch.flexmark.parser.Parser;
-import com.vladsch.flexmark.util.ast.Node;
-import com.vladsch.flexmark.util.data.MutableDataSet;
-import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.confluence.AbstractConfluenceTask;
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
-
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -25,6 +8,25 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
+
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.vladsch.flexmark.html.HtmlRenderer;
+import com.vladsch.flexmark.parser.Parser;
+import com.vladsch.flexmark.util.ast.Node;
+import com.vladsch.flexmark.util.data.MutableDataSet;
+
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.confluence.AbstractConfluenceTask;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 @SuperBuilder
 @ToString
@@ -63,17 +65,20 @@ import java.util.Map;
 public class Create extends AbstractConfluenceTask implements RunnableTask<Create.Output> {
     @Schema(
         title = "Create content as embedded",
-        description = "Sets `embedded=true` so Confluence stores the page in the new content service. Default: false")
+        description = "Sets `embedded=true` so Confluence stores the page in the new content service. Default: false"
+    )
     private Property<Boolean> embedded;
 
     @Schema(
         title = "Make page private",
-        description = "If true, only the creator can view and edit the page until permissions are changed. Default: false")
+        description = "If true, only the creator can view and edit the page until permissions are changed. Default: false"
+    )
     private Property<Boolean> makePrivate;
 
     @Schema(
         title = "Create page at space root",
-        description = "Creates the page at the space root (outside the homepage tree) and forbids parentId. Default: false")
+        description = "Creates the page at the space root (outside the homepage tree) and forbids parentId. Default: false"
+    )
     private Property<Boolean> rootLevel;
 
     @Schema(title = "Target space ID", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -145,9 +150,12 @@ public class Create extends AbstractConfluenceTask implements RunnableTask<Creat
         payload.put("spaceId", rSpaceId);
         payload.put("title", rTitle);
 
-        if (rStatus != null) payload.put("status", rStatus);
-        if (rParentId != null) payload.put("parentId", rParentId);
-        if (rSubtype != null) payload.put("subtype", rSubtype);
+        if (rStatus != null)
+            payload.put("status", rStatus);
+        if (rParentId != null)
+            payload.put("parentId", rParentId);
+        if (rSubtype != null)
+            payload.put("subtype", rSubtype);
 
         ObjectNode body = payload.putObject("body");
         body.put("representation", "storage");

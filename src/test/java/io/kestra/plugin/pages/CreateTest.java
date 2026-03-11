@@ -1,18 +1,22 @@
 package io.kestra.plugin.pages;
 
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.plugin.confluence.pages.Create;
+
 import jakarta.inject.Inject;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
-import java.util.Map;
+
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -63,10 +67,12 @@ class CreateTest {
             when(httpResponseMock.statusCode()).thenReturn(500);
             when(httpResponseMock.body()).thenReturn("{\"error\":\"boom\"}");
 
-            when(httpClientMock.send(
-                any(HttpRequest.class),
-                eq(HttpResponse.BodyHandlers.ofString())
-            )).thenReturn(httpResponseMock);
+            when(
+                httpClientMock.send(
+                    any(HttpRequest.class),
+                    eq(HttpResponse.BodyHandlers.ofString())
+                )
+            ).thenReturn(httpResponseMock);
 
             assertThrows(IllegalStateException.class, () -> task.run(runContext));
         }
@@ -96,10 +102,12 @@ class CreateTest {
             when(httpResponseMock.statusCode()).thenReturn(201);
             when(httpResponseMock.body()).thenReturn(json);
 
-            when(httpClientMock.send(
-                any(HttpRequest.class),
-                eq(HttpResponse.BodyHandlers.ofString())
-            )).thenReturn(httpResponseMock);
+            when(
+                httpClientMock.send(
+                    any(HttpRequest.class),
+                    eq(HttpResponse.BodyHandlers.ofString())
+                )
+            ).thenReturn(httpResponseMock);
 
             Create.Output output = task.run(runContext);
             assertThat(output, is(notNullValue()));
