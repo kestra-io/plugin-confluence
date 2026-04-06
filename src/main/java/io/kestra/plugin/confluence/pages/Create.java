@@ -27,6 +27,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -67,52 +68,61 @@ public class Create extends AbstractConfluenceTask implements RunnableTask<Creat
         title = "Create content as embedded",
         description = "Sets `embedded=true` so Confluence stores the page in the new content service. Default: false"
     )
+    @PluginProperty(group = "advanced")
     private Property<Boolean> embedded;
 
     @Schema(
         title = "Make page private",
         description = "If true, only the creator can view and edit the page until permissions are changed. Default: false"
     )
+    @PluginProperty(group = "advanced")
     private Property<Boolean> makePrivate;
 
     @Schema(
         title = "Create page at space root",
         description = "Creates the page at the space root (outside the homepage tree) and forbids parentId. Default: false"
     )
+    @PluginProperty(group = "advanced")
     private Property<Boolean> rootLevel;
 
     @Schema(title = "Target space ID", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> spaceId;
 
     @Schema(
         title = "Page status",
         description = "Optional page status. Valid values: `current`, `draft`. Confluence applies its default when omitted."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> status;
 
     @Schema(
         title = "Page title",
         description = "Display title for the new Confluence page."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> title;
 
     @Schema(
         title = "Parent page ID",
         description = "Parent content ID. When rootLevel is false and omitted, Confluence uses the space homepage; ignored when rootLevel is true."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> parentId;
 
     @Schema(
         title = "Markdown content to upload",
         description = "Markdown rendered to Confluence storage HTML before sending to the API."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> markdown;
 
     @Schema(
         title = "Page subtype",
         description = "Optional subtype. Use `live` to create a collaborative live doc; omit for a regular page."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> subtype;
 
     @Override

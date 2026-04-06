@@ -33,6 +33,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -79,6 +80,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         title = "Sort order of results",
         description = "Specify sorting of the result set. Valid values: id, -id, created-date, -created-date, modified-date, -modified-date, title, -title."
     )
+    @PluginProperty(group = "processing")
     private Property<String> sort;
 
     @Schema(
@@ -92,18 +94,21 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         title = "Page title filter",
         description = "Filter results to pages that exactly match this title."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> title;
 
     @Schema(
         title = "Page subtype filter",
         description = "Filter by page subtype. Valid values: live (collaborative draft/live page), page (regular page)."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> subType;
 
     @Schema(
         title = "Pagination cursor",
         description = "Opaque cursor returned in the Link response header; pass it to fetch the next page of results."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> cursor;
 
     @Schema(
@@ -118,6 +123,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         description = "Determines how results are returned. FETCH returns a list, FETCH_ONE limits to the first page, STORE writes all pages to internal storage and returns a URI. Default: FETCH."
     )
     @Builder.Default
+    @PluginProperty(group = "processing")
     private Property<FetchType> fetchType = Property.ofValue(FetchType.FETCH);
 
     @Override
@@ -293,6 +299,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
     @Getter
     public static class OutputChild implements io.kestra.core.models.tasks.Output {
         @Schema(title = "Page title")
+        @PluginProperty(group = "advanced")
         private final String title;
 
         @Schema(title = "Markdown content")

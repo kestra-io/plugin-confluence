@@ -10,6 +10,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -22,6 +23,7 @@ public abstract class AbstractConfluenceTask extends Task {
         description = "Base Confluence site URL (e.g., https://your-domain.atlassian.net) without a trailing slash; /wiki/api/v2 is appended automatically."
     )
     @NotNull
+    @PluginProperty(group = "main")
     protected Property<String> serverUrl;
 
     @Schema(
@@ -29,6 +31,7 @@ public abstract class AbstractConfluenceTask extends Task {
         description = "Confluence account email used for Basic authentication; render from secrets where possible."
     )
     @NotNull
+    @PluginProperty(group = "main")
     protected Property<String> username;
 
     @Schema(
@@ -36,5 +39,6 @@ public abstract class AbstractConfluenceTask extends Task {
         description = "Atlassian API token associated with the username; keep in a secret and avoid logging."
     )
     @NotNull
+    @PluginProperty(group = "main")
     protected Property<String> apiToken;
 }
