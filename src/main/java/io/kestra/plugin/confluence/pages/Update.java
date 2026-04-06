@@ -25,6 +25,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -67,6 +68,7 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
         description = "Confluence page identifier to update; used in the request path."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> pageId;
 
     @Schema(
@@ -74,6 +76,7 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
         description = "Required page status. Valid values: `current`, `draft`. Changing from current to draft deletes any existing draft."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> status;
 
     @Schema(
@@ -81,24 +84,28 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
         description = "Updated page title."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> title;
 
     @Schema(
         title = "Space ID",
         description = "ID of the containing space; must stay within the current space because cross-space moves are not supported."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> spaceId;
 
     @Schema(
         title = "Parent page ID",
         description = "Parent content ID for re-parenting within the same space."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> parentId;
 
     @Schema(
         title = "Owner Account ID",
         description = "Account ID of the page owner; transfers ownership to another user."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> ownerId;
 
     @Schema(
@@ -106,6 +113,7 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
         description = "Markdown rendered to Confluence storage HTML before sending to the API."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> markdown;
 
     @Schema(
@@ -113,6 +121,7 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
         description = "Required version payload. Must include `number` (integer) and `message` (non-blank comment) for the new version."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<Map<String, Object>> versionInfo;
 
     @Override
