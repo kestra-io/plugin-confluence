@@ -7,8 +7,9 @@
 
 ## Why
 
-- This plugin integrates Kestra with Atlassian Confluence.
-- It provides tasks that connect Kestra flows to Atlassian Confluence for creating, updating, and retrieving page content.
+- What user problem does this solve? Teams need to connect Kestra flows to Atlassian Confluence for creating, updating, and retrieving page content from orchestrated workflows instead of relying on manual console work, ad hoc scripts, or disconnected schedulers.
+- Why would a team adopt this plugin in a workflow? It keeps Atlassian Confluence steps in the same Kestra flow as upstream preparation, approvals, retries, notifications, and downstream systems.
+- What operational/business outcome does it enable? It reduces manual handoffs and fragmented tooling while improving reliability, traceability, and delivery speed for processes that depend on Atlassian Confluence.
 
 ## How
 
