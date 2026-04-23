@@ -132,13 +132,11 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         FlexmarkHtmlConverter converter = FlexmarkHtmlConverter.builder().build();
         java.util.List<OutputChild> markdownPages = new ArrayList<>();
 
-        String rServerUrl = runContext.render(this.serverUrl).as(String.class)
-            .orElseThrow(() -> new IllegalArgumentException("serverUrl is required"));
+        String apiBaseUrl = buildApiBaseUrl(runContext);
         String rUsername = runContext.render(this.username).as(String.class)
             .orElseThrow(() -> new IllegalArgumentException("username is required"));
         String rApiToken = runContext.render(this.apiToken).as(String.class)
             .orElseThrow(() -> new IllegalArgumentException("apiToken is required"));
-        String rApiPath = runContext.render(this.apiPath).as(String.class).orElse("/wiki/api/v2");
 
         java.util.List<Integer> rSpaceIds = runContext.render(this.spaceIds).asList(Integer.class);
         java.util.List<Integer> rPageIds = runContext.render(this.pageIds).asList(Integer.class);
@@ -193,9 +191,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
             )
             .collect(Collectors.joining("&"));
 
-        String base = rServerUrl.endsWith("/") ? rServerUrl.substring(0, rServerUrl.length() - 1) : rServerUrl;
-        String apiBase = rApiPath.endsWith("/") ? rApiPath.substring(0, rApiPath.length() - 1) : rApiPath;
-        String url = base + apiBase + "/pages";
+        String url = apiBaseUrl + "/pages";
         if (!query.isEmpty()) {
             url += "?" + query;
         }

@@ -2,6 +2,7 @@ package io.kestra.plugin.confluence;
 
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.Task;
+import io.kestra.core.runners.RunContext;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -50,4 +51,16 @@ public abstract class AbstractConfluenceTask extends Task {
     @NotNull
     @PluginProperty(group = "main")
     protected Property<String> apiToken;
+
+    protected String buildApiBaseUrl(RunContext runContext) throws Exception {
+        String server = runContext.render(this.serverUrl).as(String.class)
+            .orElseThrow(() -> new IllegalArgumentException("serverUrl is required"));
+        String path = runContext.render(this.apiPath).as(String.class)
+            .orElseThrow(() -> new IllegalArgumentException("apiPath is required"));
+        return stripTrailingSlash(server) + stripTrailingSlash(path);
+    }
+
+    private static String stripTrailingSlash(String s) {
+        return s.endsWith("/") ? s.substring(0, s.length() - 1) : s;
+    }
 }

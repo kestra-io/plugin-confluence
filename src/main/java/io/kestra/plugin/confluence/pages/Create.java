@@ -129,13 +129,11 @@ public class Create extends AbstractConfluenceTask implements RunnableTask<Creat
     public Create.Output run(RunContext runContext) throws Exception {
         var logger = runContext.logger();
 
-        String rServerUrl = runContext.render(this.serverUrl).as(String.class)
-            .orElseThrow(() -> new IllegalArgumentException("serverUrl is required"));
+        String apiBaseUrl = buildApiBaseUrl(runContext);
         String rUsername = runContext.render(this.username).as(String.class)
             .orElseThrow(() -> new IllegalArgumentException("username is required"));
         String rApiToken = runContext.render(this.apiToken).as(String.class)
             .orElseThrow(() -> new IllegalArgumentException("apiToken is required"));
-        String rApiPath = runContext.render(this.apiPath).as(String.class).orElse("/wiki/api/v2");
         String rSpaceId = runContext.render(this.spaceId).as(String.class)
             .orElseThrow(() -> new IllegalArgumentException("spaceId is required"));
         String rTitle = runContext.render(this.title).as(String.class)
@@ -180,9 +178,7 @@ public class Create extends AbstractConfluenceTask implements RunnableTask<Creat
         String authString = rUsername + ":" + rApiToken;
         String encodedAuth = Base64.getEncoder().encodeToString(authString.getBytes(StandardCharsets.UTF_8));
 
-        String base = rServerUrl.endsWith("/") ? rServerUrl.substring(0, rServerUrl.length() - 1) : rServerUrl;
-        String apiBase = rApiPath.endsWith("/") ? rApiPath.substring(0, rApiPath.length() - 1) : rApiPath;
-        String url = base + apiBase + "/pages";
+        String url = apiBaseUrl + "/pages";
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
