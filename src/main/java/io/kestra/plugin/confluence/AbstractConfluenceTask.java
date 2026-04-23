@@ -22,7 +22,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 public abstract class AbstractConfluenceTask extends Task {
     @Schema(
         title = "Set Confluence site URL",
-        description = "Base Confluence site URL (e.g., https://your-domain.atlassian.net) without a trailing slash."
+        description = "Base Confluence site URL (e.g., `https://your-domain.atlassian.net`) without a trailing slash."
     )
     @NotNull
     @PluginProperty(group = "main")
@@ -30,7 +30,7 @@ public abstract class AbstractConfluenceTask extends Task {
 
     @Schema(
         title = "API base path",
-        description = "Base path appended to the server URL before the resource endpoint. Defaults to /wiki/api/v2 for Confluence Cloud. Override for On-Premise instances (e.g., /rest/api or a custom context root)."
+        description = "Base path appended to the server URL before the resource endpoint. Defaults to `/wiki/api/v2` for Confluence Cloud. Override for On-Premise instances (e.g., `/rest/api` or a custom context root)."
     )
     @PluginProperty(group = "main")
     @Builder.Default
