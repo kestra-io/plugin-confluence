@@ -135,6 +135,7 @@ public class Create extends AbstractConfluenceTask implements RunnableTask<Creat
             .orElseThrow(() -> new IllegalArgumentException("username is required"));
         String rApiToken = runContext.render(this.apiToken).as(String.class)
             .orElseThrow(() -> new IllegalArgumentException("apiToken is required"));
+        String rApiPath = runContext.render(this.apiPath).as(String.class).orElse("/wiki/api/v2");
         String rSpaceId = runContext.render(this.spaceId).as(String.class)
             .orElseThrow(() -> new IllegalArgumentException("spaceId is required"));
         String rTitle = runContext.render(this.title).as(String.class)
@@ -180,7 +181,8 @@ public class Create extends AbstractConfluenceTask implements RunnableTask<Creat
         String encodedAuth = Base64.getEncoder().encodeToString(authString.getBytes(StandardCharsets.UTF_8));
 
         String base = rServerUrl.endsWith("/") ? rServerUrl.substring(0, rServerUrl.length() - 1) : rServerUrl;
-        String url = base + "/wiki/api/v2/pages";
+        String apiBase = rApiPath.endsWith("/") ? rApiPath.substring(0, rApiPath.length() - 1) : rApiPath;
+        String url = base + apiBase + "/pages";
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()

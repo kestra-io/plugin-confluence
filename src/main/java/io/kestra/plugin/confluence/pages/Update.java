@@ -134,6 +134,7 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
             .orElseThrow(() -> new IllegalArgumentException("username is required"));
         String rApiToken = runContext.render(this.apiToken).as(String.class)
             .orElseThrow(() -> new IllegalArgumentException("apiToken is required"));
+        String rApiPath = runContext.render(this.apiPath).as(String.class).orElse("/wiki/api/v2");
         String rPageId = runContext.render(this.pageId).as(String.class)
             .orElseThrow(() -> new IllegalArgumentException("pageId is required"));
         String rStatus = runContext.render(this.status).as(String.class)
@@ -207,7 +208,8 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
         String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
 
         String base = rServerUrl.endsWith("/") ? rServerUrl.substring(0, rServerUrl.length() - 1) : rServerUrl;
-        String url = base + "/wiki/api/v2/pages/" + rPageId;
+        String apiBase = rApiPath.endsWith("/") ? rApiPath.substring(0, rApiPath.length() - 1) : rApiPath;
+        String url = base + apiBase + "/pages/" + rPageId;
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()

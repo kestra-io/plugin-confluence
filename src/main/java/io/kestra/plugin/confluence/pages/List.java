@@ -138,6 +138,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
             .orElseThrow(() -> new IllegalArgumentException("username is required"));
         String rApiToken = runContext.render(this.apiToken).as(String.class)
             .orElseThrow(() -> new IllegalArgumentException("apiToken is required"));
+        String rApiPath = runContext.render(this.apiPath).as(String.class).orElse("/wiki/api/v2");
 
         java.util.List<Integer> rSpaceIds = runContext.render(this.spaceIds).asList(Integer.class);
         java.util.List<Integer> rPageIds = runContext.render(this.pageIds).asList(Integer.class);
@@ -192,7 +193,9 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
             )
             .collect(Collectors.joining("&"));
 
-        String url = rServerUrl + "/wiki/api/v2/pages";
+        String base = rServerUrl.endsWith("/") ? rServerUrl.substring(0, rServerUrl.length() - 1) : rServerUrl;
+        String apiBase = rApiPath.endsWith("/") ? rApiPath.substring(0, rApiPath.length() - 1) : rApiPath;
+        String url = base + apiBase + "/pages";
         if (!query.isEmpty()) {
             url += "?" + query;
         }
