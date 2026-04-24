@@ -41,7 +41,7 @@ public abstract class AbstractConfluenceTask extends Task {
         description = "Confluence account email used for Basic authentication; render from secrets where possible."
     )
     @NotNull
-    @PluginProperty(group = "main")
+    @PluginProperty(secret = true, group = "main")
     protected Property<String> username;
 
     @Schema(
@@ -49,7 +49,7 @@ public abstract class AbstractConfluenceTask extends Task {
         description = "Atlassian API token associated with the username; keep in a secret and avoid logging."
     )
     @NotNull
-    @PluginProperty(group = "main")
+    @PluginProperty(secret = true, group = "main")
     protected Property<String> apiToken;
 
     protected String buildApiBaseUrl(RunContext runContext) throws Exception {
