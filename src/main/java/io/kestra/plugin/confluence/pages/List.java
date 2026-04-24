@@ -132,8 +132,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         FlexmarkHtmlConverter converter = FlexmarkHtmlConverter.builder().build();
         java.util.List<OutputChild> markdownPages = new ArrayList<>();
 
-        String rServerUrl = runContext.render(this.serverUrl).as(String.class)
-            .orElseThrow(() -> new IllegalArgumentException("serverUrl is required"));
+        String apiBaseUrl = buildApiBaseUrl(runContext);
         String rUsername = runContext.render(this.username).as(String.class)
             .orElseThrow(() -> new IllegalArgumentException("username is required"));
         String rApiToken = runContext.render(this.apiToken).as(String.class)
@@ -192,7 +191,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
             )
             .collect(Collectors.joining("&"));
 
-        String url = rServerUrl + "/wiki/api/v2/pages";
+        String url = apiBaseUrl + "/pages";
         if (!query.isEmpty()) {
             url += "?" + query;
         }
