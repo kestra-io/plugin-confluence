@@ -48,6 +48,7 @@ import io.kestra.core.models.annotations.PluginProperty;
     examples = {
         @Example(
             title = "Fetch Confluence pages as Markdown",
+            full = true,
             code = """
                 id: fetch-confluence-pages
                 namespace: company.team

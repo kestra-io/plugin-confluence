@@ -40,6 +40,7 @@ import io.kestra.core.models.annotations.PluginProperty;
     examples = {
         @Example(
             title = "Update the title and content of a specific Confluence page.",
+            full = true,
             code = """
                 id: update-confluence-page
                 namespace: company.team
