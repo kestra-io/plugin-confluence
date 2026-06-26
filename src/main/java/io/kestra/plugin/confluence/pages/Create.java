@@ -42,6 +42,7 @@ import io.kestra.core.models.annotations.PluginProperty;
     examples = {
         @Example(
             title = "Create a basic page in a Confluence space.",
+            full = true,
             code = """
                 id: create-confluence-page
                 namespace: company.team
