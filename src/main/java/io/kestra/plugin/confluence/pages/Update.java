@@ -4,6 +4,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
 
@@ -204,7 +205,7 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
         }
 
         String auth = rUsername + ":" + rApiToken;
-        String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
+        String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
 
         String url = apiBaseUrl + "/pages/" + rPageId;
 
