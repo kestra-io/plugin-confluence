@@ -48,6 +48,7 @@ import io.kestra.core.models.annotations.PluginProperty;
     examples = {
         @Example(
             title = "Fetch Confluence pages as Markdown",
+            full = true,
             code = """
                 id: fetch-confluence-pages
                 namespace: company.team
@@ -197,7 +198,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         }
 
         String auth = rUsername + ":" + rApiToken;
-        String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
+        String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()

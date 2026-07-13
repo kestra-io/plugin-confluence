@@ -42,6 +42,7 @@ public abstract class AbstractConfluenceTask extends Task {
     )
     @NotNull
     @PluginProperty(secret = true, group = "main")
+    @ToString.Exclude
     protected Property<String> username;
 
     @Schema(
@@ -50,6 +51,7 @@ public abstract class AbstractConfluenceTask extends Task {
     )
     @NotNull
     @PluginProperty(secret = true, group = "main")
+    @ToString.Exclude
     protected Property<String> apiToken;
 
     protected String buildApiBaseUrl(RunContext runContext) throws Exception {
