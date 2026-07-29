@@ -52,7 +52,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     type: io.kestra.plugin.confluence.pages.Create
                     serverUrl: https://your-domain.atlassian.net
                     username: your-email@example.com
-                    apiToken: {{ secret('CONFLUENCE_API_TOKEN') }}
+                    apiToken: "{{ secret('CONFLUENCE_API_TOKEN') }}"
                     spaceId: "123456"
                     title: My New Page from Kestra
                     markdown: |
@@ -100,7 +100,7 @@ public class Create extends AbstractConfluenceTask implements RunnableTask<Creat
 
     @Schema(
         title = "Page title",
-        description = "Display title for the new Confluence page."
+        description = "Display title for the new Confluence page. Required."
     )
     @PluginProperty(group = "advanced")
     private Property<String> title;
@@ -114,7 +114,7 @@ public class Create extends AbstractConfluenceTask implements RunnableTask<Creat
 
     @Schema(
         title = "Markdown content to upload",
-        description = "Markdown rendered to Confluence storage HTML before sending to the API."
+        description = "Markdown rendered to Confluence storage HTML before sending to the API. Required."
     )
     @PluginProperty(group = "advanced")
     private Property<String> markdown;
