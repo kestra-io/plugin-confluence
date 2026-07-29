@@ -56,7 +56,8 @@ import io.kestra.core.models.annotations.PluginProperty;
                     status: current
                     title: New Page Title
                     markdown: |
-                      # My Updated Content\\nThis is the new content for the page.
+                      # My Updated Content
+                      This is the new content for the page.
                     versionInfo:
                       number: 2
                       message: Updated content and title via Kestra.
