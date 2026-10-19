@@ -7,7 +7,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -308,10 +311,234 @@ class ListTest {
         }
     }
 
-    @SuppressWarnings("unchecked")
+    @Test
+    void store_followsCursorFromComplexLinkHeader() throws Exception {
+        RunContext runContext = runContextFactory.of(Map.of());
+
+        List task = List.builder()
+            .serverUrl(Property.ofValue("https://example.com"))
+            .username(Property.ofValue("user@example.com"))
+            .apiToken(Property.ofValue("token"))
+            .fetchType(Property.ofValue(FetchType.STORE))
+            .build();
+
+        String firstPage = """
+            { "results": [ { "title": "Page 1", "body": { "storage": { "value": "<p>one</p>" } } } ] }
+            """;
+        String lastPage = """
+            { "results": [ { "title": "Page 2", "body": { "storage": { "value": "<p>two</p>" } } } ] }
+            """;
+
+        HttpClient httpClientMock = Mockito.mock(HttpClient.class);
+        // next is not the first link, carries extra params, a multi-value rel, and a cursor with a literal '+'
+        HttpResponse<String> firstResponse = mockResponse(
+            firstPage,
+            "</wiki/api/v2/pages?cursor=old>; rel=\"prev\", </wiki/api/v2/pages?limit=25&cursor=ab+c%2Fd>; title=\"more\"; REL=\"first next\""
+        );
+        HttpResponse<String> lastResponse = mockResponse(lastPage, null);
+
+        try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
+            httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
+            Mockito.doReturn(firstResponse, lastResponse)
+                .when(httpClientMock)
+                .send(any(HttpRequest.class), any());
+
+            List.Output output = task.run(runContext);
+
+            ArgumentCaptor<HttpRequest> requests = ArgumentCaptor.forClass(HttpRequest.class);
+            Mockito.verify(httpClientMock, Mockito.times(2)).send(requests.capture(), any());
+            assertThat(requests.getAllValues().get(1).uri().getRawQuery(), containsString("cursor=ab%2Bc%2Fd"));
+
+            assertThat(storedTitles(runContext, output.getUri()), contains("Page 1", "Page 2"));
+        }
+    }
+
+    @Test
+    void store_startsFromGivenCursor() throws Exception {
+        RunContext runContext = runContextFactory.of(Map.of());
+
+        List task = List.builder()
+            .serverUrl(Property.ofValue("https://example.com"))
+            .username(Property.ofValue("user@example.com"))
+            .apiToken(Property.ofValue("token"))
+            .cursor(Property.ofValue("start1"))
+            .fetchType(Property.ofValue(FetchType.STORE))
+            .build();
+
+        String lastPage = """
+            { "results": [ { "title": "Page 2", "body": { "storage": { "value": "<p>two</p>" } } } ], "_links": {} }
+            """;
+
+        HttpClient httpClientMock = Mockito.mock(HttpClient.class);
+        HttpResponse<String> lastResponse = mockResponse(lastPage, null);
+
+        try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
+            httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
+            Mockito.doReturn(lastResponse)
+                .when(httpClientMock)
+                .send(any(HttpRequest.class), any());
+
+            List.Output output = task.run(runContext);
+
+            ArgumentCaptor<HttpRequest> requests = ArgumentCaptor.forClass(HttpRequest.class);
+            Mockito.verify(httpClientMock, Mockito.times(1)).send(requests.capture(), any());
+            assertThat(requests.getValue().uri().getQuery(), containsString("cursor=start1"));
+            assertThat(storedTitles(runContext, output.getUri()), contains("Page 2"));
+        }
+    }
+
+    @Test
+    void store_failsWhenALaterPageFails() throws Exception {
+        RunContext runContext = runContextFactory.of(Map.of());
+
+        List task = List.builder()
+            .serverUrl(Property.ofValue("https://example.com"))
+            .username(Property.ofValue("user@example.com"))
+            .apiToken(Property.ofValue("token"))
+            .fetchType(Property.ofValue(FetchType.STORE))
+            .build();
+
+        String firstPage = """
+            {
+              "results": [ { "title": "Page 1", "body": { "storage": { "value": "<p>one</p>" } } } ],
+              "_links": { "next": "/wiki/api/v2/pages?cursor=abc123" }
+            }
+            """;
+
+        HttpClient httpClientMock = Mockito.mock(HttpClient.class);
+        HttpResponse<String> firstResponse = mockResponse(firstPage, null);
+        HttpResponse<String> errorResponse = mockResponse(429, "{\"message\":\"rate limited\"}", null);
+
+        try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
+            httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
+            Mockito.doReturn(firstResponse, errorResponse)
+                .when(httpClientMock)
+                .send(any(HttpRequest.class), any());
+
+            IllegalStateException e = assertThrows(IllegalStateException.class, () -> task.run(runContext));
+            assertThat(e.getMessage(), containsString("429"));
+            Mockito.verify(httpClientMock, Mockito.times(2)).send(any(HttpRequest.class), any());
+
+            // the temp Ion file must have been closed (an open file cannot be deleted on Windows)
+            try (Stream<Path> files = Files.walk(runContext.workingDir().path())) {
+                java.util.List<Path> ionFiles = files.filter(p -> p.toString().endsWith(".ion")).toList();
+                assertThat(ionFiles, hasSize(1));
+                Files.delete(ionFiles.getFirst());
+            }
+        }
+    }
+
+    @Test
+    void store_stopsWhenCursorRepeats() throws Exception {
+        RunContext runContext = runContextFactory.of(Map.of());
+
+        List task = List.builder()
+            .serverUrl(Property.ofValue("https://example.com"))
+            .username(Property.ofValue("user@example.com"))
+            .apiToken(Property.ofValue("token"))
+            .fetchType(Property.ofValue(FetchType.STORE))
+            .build();
+
+        String loopingPage = """
+            {
+              "results": [ { "title": "Page 1", "body": { "storage": { "value": "<p>one</p>" } } } ],
+              "_links": { "next": "/wiki/api/v2/pages?cursor=same" }
+            }
+            """;
+
+        HttpClient httpClientMock = Mockito.mock(HttpClient.class);
+        HttpResponse<String> loopingResponse = mockResponse(loopingPage, null);
+
+        try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
+            httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
+            Mockito.doReturn(loopingResponse)
+                .when(httpClientMock)
+                .send(any(HttpRequest.class), any());
+
+            IllegalStateException e = assertThrows(IllegalStateException.class, () -> task.run(runContext));
+            assertThat(e.getMessage(), containsString("'same' twice"));
+            Mockito.verify(httpClientMock, Mockito.times(2)).send(any(HttpRequest.class), any());
+        }
+    }
+
+    @Test
+    void fetchOne_returnsNextCursorWithoutFollowingIt() throws Exception {
+        RunContext runContext = runContextFactory.of(Map.of());
+
+        List task = List.builder()
+            .serverUrl(Property.ofValue("https://example.com"))
+            .username(Property.ofValue("user@example.com"))
+            .apiToken(Property.ofValue("token"))
+            .fetchType(Property.ofValue(FetchType.FETCH_ONE))
+            .build();
+
+        String firstPage = """
+            {
+              "results": [ { "title": "Page 1", "body": { "storage": { "value": "<p>one</p>" } } } ],
+              "_links": { "next": "/wiki/api/v2/pages?cursor=abc123&limit=1" }
+            }
+            """;
+
+        HttpClient httpClientMock = Mockito.mock(HttpClient.class);
+        HttpResponse<String> firstResponse = mockResponse(firstPage, null);
+
+        try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
+            httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
+            Mockito.doReturn(firstResponse)
+                .when(httpClientMock)
+                .send(any(HttpRequest.class), any());
+
+            List.Output output = task.run(runContext);
+
+            ArgumentCaptor<HttpRequest> requests = ArgumentCaptor.forClass(HttpRequest.class);
+            Mockito.verify(httpClientMock, Mockito.times(1)).send(requests.capture(), any());
+            assertThat(requests.getValue().uri().getQuery(), containsString("limit=1"));
+            assertThat(output.getChildren(), hasSize(1));
+            assertThat(output.getNextCursor(), is("abc123"));
+        }
+    }
+
+    @Test
+    void fetch_lastPageHasNoNextCursor() throws Exception {
+        RunContext runContext = runContextFactory.of(Map.of());
+
+        List task = List.builder()
+            .serverUrl(Property.ofValue("https://example.com"))
+            .username(Property.ofValue("user@example.com"))
+            .apiToken(Property.ofValue("token"))
+            .build();
+
+        String lastPage = """
+            {
+              "results": [ { "title": "Page 1", "body": { "storage": { "value": "<p>one</p>" } } } ],
+              "_links": { "base": "https://example.com/wiki" }
+            }
+            """;
+
+        HttpClient httpClientMock = Mockito.mock(HttpClient.class);
+        HttpResponse<String> lastResponse = mockResponse(lastPage, "</wiki>; rel=\"base\"");
+
+        try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
+            httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
+            Mockito.doReturn(lastResponse)
+                .when(httpClientMock)
+                .send(any(HttpRequest.class), any());
+
+            List.Output output = task.run(runContext);
+
+            assertThat(output.getChildren(), hasSize(1));
+            assertThat(output.getNextCursor(), is(nullValue()));
+        }
+    }
+
     private static HttpResponse<String> mockResponse(String body, String linkHeader) {
+        return mockResponse(200, body, linkHeader);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static HttpResponse<String> mockResponse(int status, String body, String linkHeader) {
         HttpResponse<String> response = Mockito.mock(HttpResponse.class);
-        when(response.statusCode()).thenReturn(200);
+        when(response.statusCode()).thenReturn(status);
         when(response.body()).thenReturn(body);
         Map<String, java.util.List<String>> headers = linkHeader == null ? Map.of() : Map.of("Link", java.util.List.of(linkHeader));
         when(response.headers()).thenReturn(HttpHeaders.of(headers, (name, value) -> true));

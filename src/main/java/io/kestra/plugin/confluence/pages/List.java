@@ -68,7 +68,8 @@ import lombok.experimental.SuperBuilder;
 )
 public class List extends AbstractConfluenceTask implements RunnableTask<List.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofJson();
-    private static final Pattern NEXT_LINK = Pattern.compile("<([^>]+)>\\s*;\\s*rel=\"?next\"?");
+    // matches one `<url>; ...; rel="next"` entry of a Link header, also when rel lists several values (rel="prev next")
+    private static final Pattern NEXT_LINK = Pattern.compile("<([^>]*)>[^<]*?\\brel\\s*=\\s*\"?(?:[^\"<]*\\s)?next(?=[\\s\",;]|$)", Pattern.CASE_INSENSITIVE);
 
     @Schema(
         title = "Page IDs to filter",
@@ -112,7 +113,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
 
     @Schema(
         title = "Pagination cursor",
-        description = "Opaque cursor returned in the Link response header; pass it to fetch the next page of results."
+        description = "Opaque cursor to start from, typically the `nextCursor` output of a previous run. With FETCH or FETCH_ONE one page is returned starting at this cursor; with STORE every page from this cursor onwards is stored."
     )
     @PluginProperty(group = "advanced")
     private Property<String> cursor;
@@ -203,68 +204,76 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         // STORE follows the cursor until Confluence has no next page; FETCH and FETCH_ONE return a single page
         // and expose the next cursor so it can be passed back in as `cursor`.
         String nextCursor = rCursor;
-        do {
-            if (nextCursor != null) {
-                params.put("cursor", nextCursor);
-            }
+        Set<String> seenCursors = new HashSet<>();
+        if (rCursor != null) {
+            seenCursors.add(rCursor);
+        }
+        try {
+            do {
+                if (nextCursor != null) {
+                    params.put("cursor", nextCursor);
+                }
 
-            String query = params.entrySet().stream()
-                .filter(e -> StringUtils.isNotBlank(e.getValue()))
-                .map(
-                    e -> URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8)
-                        + "=" + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8)
-                )
-                .collect(Collectors.joining("&"));
+                String query = params.entrySet().stream()
+                    .filter(e -> StringUtils.isNotBlank(e.getValue()))
+                    .map(
+                        e -> URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8)
+                            + "=" + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8)
+                    )
+                    .collect(Collectors.joining("&"));
 
-            String url = apiBaseUrl + "/pages";
-            if (!query.isEmpty()) {
-                url += "?" + query;
-            }
+                String url = apiBaseUrl + "/pages";
+                if (!query.isEmpty()) {
+                    url += "?" + query;
+                }
 
-            HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Authorization", "Basic " + encodedAuth)
-                .header("Accept", "application/json")
-                .GET()
-                .build();
+                HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("Authorization", "Basic " + encodedAuth)
+                    .header("Accept", "application/json")
+                    .GET()
+                    .build();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-            if (response.statusCode() != 200) {
-                logger.error("Confluence request failed: status={} body={}", response.statusCode(), response.body());
-                throw new IllegalStateException("Confluence API returned " + response.statusCode());
-            }
+                if (response.statusCode() != 200) {
+                    logger.error("Confluence request failed: status={} body={}", response.statusCode(), response.body());
+                    throw new IllegalStateException("Confluence API returned " + response.statusCode());
+                }
 
-            JsonNode responseJson = mapper.readTree(response.body());
-            JsonNode results = responseJson.get("results");
+                JsonNode responseJson = mapper.readTree(response.body());
+                JsonNode results = responseJson.get("results");
 
-            if (results != null && results.isArray()) {
-                for (JsonNode pageInfo : results) {
-                    OutputChild page = convertPage(pageInfo, bodyFormat, converter);
-                    if (page != null) {
-                        switch (rFetchType) {
-                            case FETCH, FETCH_ONE:
-                                markdownPages.add(page);
-                                break;
-                            case STORE:
-                                try {
+                if (results != null && results.isArray()) {
+                    for (JsonNode pageInfo : results) {
+                        OutputChild page = convertPage(pageInfo, bodyFormat, converter);
+                        if (page != null) {
+                            switch (rFetchType) {
+                                case FETCH, FETCH_ONE:
+                                    markdownPages.add(page);
+                                    break;
+                                case STORE:
+                                    // fail the task rather than silently storing a partial result
                                     FileSerde.write(fileWriter, page);
-                                } catch (Exception e) {
-                                    logger.error("Failed to write page to file: {}", e.getMessage());
-                                    fileWriter.close();
-                                }
-                                break;
+                                    break;
+                            }
                         }
                     }
                 }
-            }
 
-            nextCursor = extractNextCursor(response, responseJson);
-        } while (rFetchType == FetchType.STORE && nextCursor != null);
+                nextCursor = extractNextCursor(response, responseJson);
+                if (rFetchType == FetchType.STORE && nextCursor != null && !seenCursors.add(nextCursor)) {
+                    throw new IllegalStateException("Confluence returned the pagination cursor '" + nextCursor + "' twice, stopping to avoid an infinite loop");
+                }
+            } while (rFetchType == FetchType.STORE && nextCursor != null);
+        } finally {
+            if (fileWriter != null) {
+                fileWriter.close();
+            }
+        }
 
         Output.OutputBuilder outputBuilder = Output.builder().nextCursor(nextCursor);
         if (rFetchType == FetchType.STORE) {
-            fileWriter.close();
             URI storageUri = runContext.storage().putFile(tempFile);
             outputBuilder.uri(storageUri);
         } else {
@@ -299,7 +308,9 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         for (String pair : nextLink.substring(nextLink.indexOf('?') + 1).split("&")) {
             int eq = pair.indexOf('=');
             if (eq > 0 && pair.substring(0, eq).equals("cursor")) {
-                return StringUtils.trimToNull(URLDecoder.decode(pair.substring(eq + 1), StandardCharsets.UTF_8));
+                // keep a literal '+' as '+': cursors are opaque tokens, not form-encoded text
+                String rawCursor = pair.substring(eq + 1).replace("+", "%2B");
+                return StringUtils.trimToNull(URLDecoder.decode(rawCursor, StandardCharsets.UTF_8));
             }
         }
         return null;
