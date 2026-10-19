@@ -10,6 +10,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -451,13 +452,61 @@ class ListTest {
 
         try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
             httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
-            Mockito.doReturn(loopingResponse)
+            // bounded so a regression fails the test instead of looping forever
+            AtomicInteger calls = new AtomicInteger();
+            Mockito.doAnswer(invocation ->
+            {
+                if (calls.incrementAndGet() > 5) {
+                    throw new AssertionError("List kept requesting the same cursor");
+                }
+                return loopingResponse;
+            })
                 .when(httpClientMock)
                 .send(any(HttpRequest.class), any());
 
             IllegalStateException e = assertThrows(IllegalStateException.class, () -> task.run(runContext));
             assertThat(e.getMessage(), containsString("'same' twice"));
             Mockito.verify(httpClientMock, Mockito.times(2)).send(any(HttpRequest.class), any());
+        }
+    }
+
+    @Test
+    void store_stopsWhenResponseRepeatsGivenCursor() throws Exception {
+        RunContext runContext = runContextFactory.of(Map.of());
+
+        List task = List.builder()
+            .serverUrl(Property.ofValue("https://example.com"))
+            .username(Property.ofValue("user@example.com"))
+            .apiToken(Property.ofValue("token"))
+            .cursor(Property.ofValue("same"))
+            .fetchType(Property.ofValue(FetchType.STORE))
+            .build();
+
+        String loopingPage = """
+            {
+              "results": [ { "title": "Page 1", "body": { "storage": { "value": "<p>one</p>" } } } ],
+              "_links": { "next": "/wiki/api/v2/pages?cursor=same" }
+            }
+            """;
+
+        HttpClient httpClientMock = Mockito.mock(HttpClient.class);
+        HttpResponse<String> loopingResponse = mockResponse(loopingPage, null);
+
+        try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
+            httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
+            AtomicInteger calls = new AtomicInteger();
+            Mockito.doAnswer(invocation ->
+            {
+                if (calls.incrementAndGet() > 5) {
+                    throw new AssertionError("List kept requesting the same cursor");
+                }
+                return loopingResponse;
+            })
+                .when(httpClientMock)
+                .send(any(HttpRequest.class), any());
+
+            assertThrows(IllegalStateException.class, () -> task.run(runContext));
+            Mockito.verify(httpClientMock, Mockito.times(1)).send(any(HttpRequest.class), any());
         }
     }
 
