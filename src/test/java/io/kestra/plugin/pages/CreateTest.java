@@ -115,4 +115,41 @@ class CreateTest {
             assertThat(output.getValue(), containsString("\"id\":\"123\""));
         }
     }
+
+    @Test
+    void shouldSendEmbeddedPrivateAndRootLevelOnTheCreateUrl() throws Exception {
+        var runContext = runContextFactory.of(Map.of());
+
+        var task = Create.builder()
+            .serverUrl(Property.ofValue("https://example.com"))
+            .username(Property.ofValue("user@example.com"))
+            .apiToken(Property.ofValue("token"))
+            .spaceId(Property.ofValue("123456"))
+            .title(Property.ofValue("My New Page from Kestra"))
+            .markdown(Property.ofValue("# Hello"))
+            .embedded(Property.ofValue(true))
+            .makePrivate(Property.ofValue(true))
+            .rootLevel(Property.ofValue(true))
+            .build();
+
+        var httpClientMock = Mockito.mock(HttpClient.class);
+        HttpResponse<String> httpResponseMock = Mockito.mock(HttpResponse.class);
+
+        try (var httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
+            httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
+            when(httpResponseMock.statusCode()).thenReturn(201);
+            when(httpResponseMock.body()).thenReturn("{\"id\":\"123\"}");
+            when(httpClientMock.send(any(HttpRequest.class), eq(HttpResponse.BodyHandlers.ofString())))
+                .thenAnswer(invocation -> {
+                    HttpRequest request = invocation.getArgument(0);
+                    assertThat(request.method(), is("POST"));
+                    assertThat(request.uri().getPath(), is("/wiki/api/v2/pages"));
+                    assertThat(request.uri().getQuery(), is("embedded=true&private=true&root-level=true"));
+                    return httpResponseMock;
+                });
+
+            var output = task.run(runContext);
+            assertThat(output.getValue(), containsString("\"id\":\"123\""));
+        }
+    }
 }

@@ -1,13 +1,14 @@
 package io.kestra.plugin.confluence.pages;
 
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -18,6 +19,7 @@ import com.vladsch.flexmark.util.data.MutableDataSet;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -27,7 +29,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -171,15 +172,21 @@ public class Create extends AbstractConfluenceTask implements RunnableTask<Creat
         body.put("representation", "storage");
         body.put("value", htmlBody);
 
-        Map<String, Object> queryParams = new LinkedHashMap<>();
-        queryParams.put("embedded", rEmbedded);
-        queryParams.put("private", rMakePrivate);
-        queryParams.put("root-level", rRootLevel);
+        var queryParams = new LinkedHashMap<String, String>();
+        queryParams.put("embedded", rEmbedded.toString());
+        queryParams.put("private", rMakePrivate.toString());
+        queryParams.put("root-level", rRootLevel.toString());
+        var query = queryParams.entrySet().stream()
+            .map(
+                entry -> URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8)
+                    + "=" + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8)
+            )
+            .collect(Collectors.joining("&"));
 
         String authString = rUsername + ":" + rApiToken;
         String encodedAuth = Base64.getEncoder().encodeToString(authString.getBytes(StandardCharsets.UTF_8));
 
-        String url = apiBaseUrl + "/pages";
+        String url = apiBaseUrl + "/pages?" + query;
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
