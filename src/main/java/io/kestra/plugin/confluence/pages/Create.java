@@ -2,11 +2,7 @@ package io.kestra.plugin.confluence.pages;
 
 import java.net.URI;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
 
@@ -129,13 +125,7 @@ public class Create extends AbstractConfluenceTask implements RunnableTask<Creat
 
     @Override
     public Create.Output run(RunContext runContext) throws Exception {
-        var logger = runContext.logger();
-
         String apiBaseUrl = buildApiBaseUrl(runContext);
-        String rUsername = runContext.render(this.username).as(String.class)
-            .orElseThrow(() -> new IllegalArgumentException("username is required"));
-        String rApiToken = runContext.render(this.apiToken).as(String.class)
-            .orElseThrow(() -> new IllegalArgumentException("apiToken is required"));
         String rSpaceId = runContext.render(this.spaceId).as(String.class)
             .orElseThrow(() -> new IllegalArgumentException("spaceId is required"));
         String rTitle = runContext.render(this.title).as(String.class)
@@ -149,9 +139,9 @@ public class Create extends AbstractConfluenceTask implements RunnableTask<Creat
         Boolean rMakePrivate = runContext.render(this.makePrivate).as(Boolean.class).orElse(false);
         Boolean rRootLevel = runContext.render(this.rootLevel).as(Boolean.class).orElse(false);
 
-        MutableDataSet options = new MutableDataSet();
-        Parser parser = Parser.builder(options).build();
-        HtmlRenderer renderer = HtmlRenderer.builder(options).build();
+        var flexmarkOptions = new MutableDataSet();
+        var parser = Parser.builder(flexmarkOptions).build();
+        var renderer = HtmlRenderer.builder(flexmarkOptions).build();
         Node document = parser.parse(rMarkdown);
         String htmlBody = renderer.render(document);
 
@@ -183,28 +173,8 @@ public class Create extends AbstractConfluenceTask implements RunnableTask<Creat
             )
             .collect(Collectors.joining("&"));
 
-        String authString = rUsername + ":" + rApiToken;
-        String encodedAuth = Base64.getEncoder().encodeToString(authString.getBytes(StandardCharsets.UTF_8));
-
-        String url = apiBaseUrl + "/pages?" + query;
-
-        HttpClient client = HttpClient.newHttpClient();
-        HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .header("Authorization", "Basic " + encodedAuth)
-            .header("Content-Type", "application/json")
-            .header("Accept", "application/json")
-            .header("User-Agent", "Mozilla/5.0")
-            .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
-            .build();
-
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-        String responseBody = response.body() != null ? response.body() : "";
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            logger.error("Confluence create failed: status={} body={}", response.statusCode(), responseBody);
-            throw new IllegalStateException("Confluence API returned " + response.statusCode());
-        }
+        var response = send(runContext, "POST", URI.create("%s/pages?%s".formatted(apiBaseUrl, query)), payload.toString());
+        var responseBody = response.getBody() != null ? response.getBody() : "";
 
         return Output.builder()
             .value(responseBody)

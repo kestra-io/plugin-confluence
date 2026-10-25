@@ -4,9 +4,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URI;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -129,15 +126,10 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        var logger = runContext.logger();
         FlexmarkHtmlConverter converter = FlexmarkHtmlConverter.builder().build();
         java.util.List<OutputChild> markdownPages = new ArrayList<>();
 
         String apiBaseUrl = buildApiBaseUrl(runContext);
-        String rUsername = runContext.render(this.username).as(String.class)
-            .orElseThrow(() -> new IllegalArgumentException("username is required"));
-        String rApiToken = runContext.render(this.apiToken).as(String.class)
-            .orElseThrow(() -> new IllegalArgumentException("apiToken is required"));
 
         java.util.List<Integer> rSpaceIds = runContext.render(this.spaceIds).asList(Integer.class);
         java.util.List<Integer> rPageIds = runContext.render(this.pageIds).asList(Integer.class);
@@ -181,10 +173,6 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         params.put("limit", rLimit.toString());
         params.put("body-format", bodyFormat);
 
-        String auth = rUsername + ":" + rApiToken;
-        String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
-
-        HttpClient client = HttpClient.newHttpClient();
         ObjectMapper mapper = JacksonMapper.ofJson();
 
         File tempFile = null;
@@ -208,21 +196,9 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
                     .collect(Collectors.joining("&"));
                 var url = query.isEmpty() ? "%s/pages".formatted(apiBaseUrl) : "%s/pages?%s".formatted(apiBaseUrl, query);
 
-                var request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .header("Authorization", "Basic %s".formatted(encodedAuth))
-                    .header("Accept", "application/json")
-                    .GET()
-                    .build();
+                var response = send(runContext, "GET", URI.create(url), null);
 
-                var response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-                if (response.statusCode() != 200) {
-                    logger.error("Confluence request failed: status={} body={}", response.statusCode(), response.body());
-                    throw new IllegalStateException("Confluence API returned %s".formatted(response.statusCode()));
-                }
-
-                var responseJson = mapper.readTree(response.body());
+                var responseJson = mapper.readTree(response.getBody());
                 var results = responseJson.get("results");
 
                 if (results != null && results.isArray()) {

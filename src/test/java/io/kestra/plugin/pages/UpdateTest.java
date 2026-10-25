@@ -1,19 +1,8 @@
 package io.kestra.plugin.pages;
 
-import java.io.ByteArrayOutputStream;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Flow;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
@@ -23,15 +12,18 @@ import io.kestra.plugin.confluence.pages.Update;
 
 import jakarta.inject.Inject;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.put;
+import static com.github.tomakehurst.wiremock.client.WireMock.putRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
 
 @KestraTest
-class UpdateTest {
+class UpdateTest extends WireMockTest {
     @Inject
     private RunContextFactory runContextFactory;
 
@@ -65,7 +57,7 @@ class UpdateTest {
         RunContext runContext = runContextFactory.of(Map.of());
 
         Update task = Update.builder()
-            .serverUrl(Property.ofValue("https://example.com"))
+            .serverUrl(Property.ofValue(serverUrl()))
             .username(Property.ofValue("user@example.com"))
             .apiToken(Property.ofValue("token"))
             .pageId(Property.ofValue("123"))
@@ -89,7 +81,7 @@ class UpdateTest {
         RunContext runContext = runContextFactory.of(Map.of());
 
         Update task = Update.builder()
-            .serverUrl(Property.ofValue("https://example.com"))
+            .serverUrl(Property.ofValue(serverUrl()))
             .username(Property.ofValue("user@example.com"))
             .apiToken(Property.ofValue("token"))
             .pageId(Property.ofValue("123"))
@@ -113,7 +105,7 @@ class UpdateTest {
         RunContext runContext = runContextFactory.of(Map.of());
 
         Update task = Update.builder()
-            .serverUrl(Property.ofValue("https://example.com"))
+            .serverUrl(Property.ofValue(serverUrl()))
             .username(Property.ofValue("user@example.com"))
             .apiToken(Property.ofValue("token"))
             .pageId(Property.ofValue("123"))
@@ -138,7 +130,7 @@ class UpdateTest {
         RunContext runContext = runContextFactory.of(Map.of());
 
         Update task = Update.builder()
-            .serverUrl(Property.ofValue("https://example.com"))
+            .serverUrl(Property.ofValue(serverUrl()))
             .username(Property.ofValue("user@example.com"))
             .apiToken(Property.ofValue("token"))
             .pageId(Property.ofValue("123"))
@@ -188,7 +180,7 @@ class UpdateTest {
         RunContext runContext = runContextFactory.of(Map.of());
 
         Update task = Update.builder()
-            .serverUrl(Property.ofValue("https://example.com"))
+            .serverUrl(Property.ofValue(serverUrl()))
             .username(Property.ofValue("user@example.com"))
             .apiToken(Property.ofValue("token"))
             .pageId(Property.ofValue("123"))
@@ -205,24 +197,12 @@ class UpdateTest {
             )
             .build();
 
-        HttpClient httpClientMock = Mockito.mock(HttpClient.class);
-        HttpResponse<String> httpResponseMock = Mockito.mock(HttpResponse.class);
+        wireMock.stubFor(put(urlEqualTo(URL)).willReturn(aResponse().withStatus(500).withBody("{\"error\":\"boom\"}")));
 
-        try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
+        var e = assertThrows(IllegalStateException.class, () -> task.run(runContext));
 
-            httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
-            when(httpResponseMock.statusCode()).thenReturn(500);
-            when(httpResponseMock.body()).thenReturn("{\"error\":\"boom\"}");
-
-            when(
-                httpClientMock.send(
-                    any(HttpRequest.class),
-                    eq(HttpResponse.BodyHandlers.ofString())
-                )
-            ).thenReturn(httpResponseMock);
-
-            assertThrows(IllegalStateException.class, () -> task.run(runContext));
-        }
+        assertThat(e.getMessage(), is("Confluence API returned 500"));
+        wireMock.verify(1, putRequestedFor(urlEqualTo(URL)));
     }
 
     @Test
@@ -230,7 +210,7 @@ class UpdateTest {
         RunContext runContext = runContextFactory.of(Map.of());
 
         Update task = Update.builder()
-            .serverUrl(Property.ofValue("https://example.com"))
+            .serverUrl(Property.ofValue(serverUrl()))
             .username(Property.ofValue("user@example.com"))
             .apiToken(Property.ofValue("token"))
             .pageId(Property.ofValue("123"))
@@ -247,37 +227,30 @@ class UpdateTest {
             )
             .build();
 
-        String json = "{\"id\":\"123\",\"title\":\"Title\"}";
+        wireMock.stubFor(put(urlEqualTo(URL)).willReturn(aResponse().withStatus(200).withBody("{\"id\":\"123\",\"title\":\"Title\"}")));
 
-        HttpClient httpClientMock = Mockito.mock(HttpClient.class);
-        HttpResponse<String> httpResponseMock = Mockito.mock(HttpResponse.class);
+        var output = task.run(runContext);
 
-        try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
-
-            httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
-            when(httpResponseMock.statusCode()).thenReturn(200);
-            when(httpResponseMock.body()).thenReturn(json);
-
-            when(
-                httpClientMock.send(
-                    any(HttpRequest.class),
-                    eq(HttpResponse.BodyHandlers.ofString())
+        assertThat(output.getValue(), containsString("\"id\":\"123\""));
+        wireMock.verify(
+            1,
+            putRequestedFor(urlEqualTo(URL))
+                .withHeader("Authorization", equalTo(AUTH))
+                .withHeader("Accept", equalTo("application/json"))
+                .withHeader("Content-Type", equalTo("application/json"))
+                .withRequestBody(
+                    equalToJson(
+                        "{\"id\":\"123\",\"status\":\"current\",\"title\":\"Title\",\"version\":{\"number\":2,\"message\":\"msg\"},\"body\":{\"representation\":\"storage\",\"value\":\"<h1>Hello</h1>\\n\"}}"
+                    )
                 )
-            ).thenReturn(httpResponseMock);
-
-            Update.Output output = task.run(runContext);
-
-            assertThat(output, is(notNullValue()));
-            assertThat(output.getValue(), is(notNullValue()));
-            assertThat(output.getValue(), containsString("\"id\":\"123\""));
-        }
+        );
     }
 
     private void assertVersionNumberIsRenderedAsJsonNumber(Object rawNumber) throws Exception {
         RunContext runContext = runContextFactory.of(Map.of());
 
         Update task = Update.builder()
-            .serverUrl(Property.ofValue("https://example.com"))
+            .serverUrl(Property.ofValue(serverUrl()))
             .username(Property.ofValue("user@example.com"))
             .apiToken(Property.ofValue("token"))
             .pageId(Property.ofValue("123"))
@@ -294,75 +267,16 @@ class UpdateTest {
             )
             .build();
 
-        HttpClient httpClientMock = Mockito.mock(HttpClient.class);
-        HttpResponse<String> httpResponseMock = Mockito.mock(HttpResponse.class);
+        wireMock.stubFor(put(urlEqualTo(URL)).willReturn(aResponse().withStatus(200).withBody("{\"ok\":true}")));
 
-        ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
+        task.run(runContext);
 
-        try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
-            httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
-
-            when(httpResponseMock.statusCode()).thenReturn(200);
-            when(httpResponseMock.body()).thenReturn("{\"ok\":true}");
-
-            when(
-                httpClientMock.send(
-                    requestCaptor.capture(),
-                    eq(HttpResponse.BodyHandlers.ofString())
-                )
-            ).thenReturn(httpResponseMock);
-
-            task.run(runContext);
-
-            HttpRequest sent = requestCaptor.getValue();
-            assertThat(sent, is(notNullValue()));
-
-            String body = readBody(sent);
-            assertThat(body, is(notNullValue()));
-
-            assertThat(body, containsString("\"version\""));
-            assertThat(body, containsString("\"number\":" + 4));
-            assertThat(body, not(containsString("\"number\":\"" + 4 + "\"")));
-            assertThat(body, containsString("\"message\":\"msg\""));
-        }
+        var body = wireMock.findAll(putRequestedFor(urlEqualTo(URL))).getFirst().getBodyAsString();
+        assertThat(body, containsString("\"version\""));
+        assertThat(body, containsString("\"number\":4"));
+        assertThat(body, not(containsString("\"number\":\"4\"")));
+        assertThat(body, containsString("\"message\":\"msg\""));
     }
 
-    private static String readBody(HttpRequest request) throws Exception {
-        var publisherOpt = request.bodyPublisher();
-        if (publisherOpt.isEmpty()) {
-            return "";
-        }
-
-        HttpRequest.BodyPublisher publisher = publisherOpt.get();
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        CompletableFuture<Void> done = new CompletableFuture<>();
-
-        publisher.subscribe(new Flow.Subscriber<>() {
-
-            @Override
-            public void onSubscribe(Flow.Subscription subscription) {
-                subscription.request(Long.MAX_VALUE);
-            }
-
-            @Override
-            public void onNext(ByteBuffer item) {
-                byte[] buf = new byte[item.remaining()];
-                item.get(buf);
-                out.writeBytes(buf);
-            }
-
-            @Override
-            public void onError(Throwable throwable) {
-                done.completeExceptionally(throwable);
-            }
-
-            @Override
-            public void onComplete() {
-                done.complete(null);
-            }
-        });
-
-        done.get(); // block until complete
-        return out.toString(StandardCharsets.UTF_8);
-    }
+    private static final String URL = "/wiki/api/v2/pages/123";
 }

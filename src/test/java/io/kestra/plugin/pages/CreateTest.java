@@ -1,14 +1,12 @@
 package io.kestra.plugin.pages;
 
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 
+import io.kestra.core.http.client.configurations.HttpConfiguration;
+import io.kestra.core.http.client.configurations.TimeoutConfiguration;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
@@ -17,15 +15,20 @@ import io.kestra.plugin.confluence.pages.Create;
 
 import jakarta.inject.Inject;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
 
 @KestraTest
-class CreateTest {
+class CreateTest extends WireMockTest {
     @Inject
     private RunContextFactory runContextFactory;
 
@@ -47,81 +50,50 @@ class CreateTest {
 
     @Test
     void non2xxResponse_throwsIllegalStateException() throws Exception {
-        RunContext runContext = runContextFactory.of(Map.of());
+        wireMock.stubFor(post(urlEqualTo(URL)).willReturn(aResponse().withStatus(500).withBody("{\"error\":\"boom\"}")));
 
-        Create task = Create.builder()
-            .serverUrl(Property.ofValue("https://example.com"))
-            .username(Property.ofValue("user@example.com"))
-            .apiToken(Property.ofValue("token"))
-            .spaceId(Property.ofValue("SPACEKEY"))
-            .title(Property.ofValue("Title"))
-            .markdown(Property.ofValue("# Hello"))
-            .build();
+        var e = assertThrows(IllegalStateException.class, () -> task().run(runContextFactory.of(Map.of())));
 
-        HttpClient httpClientMock = Mockito.mock(HttpClient.class);
-        HttpResponse<String> httpResponseMock = Mockito.mock(HttpResponse.class);
+        assertThat(e.getMessage(), is("Confluence API returned 500"));
+        wireMock.verify(1, postRequestedFor(urlEqualTo(URL)));
+    }
 
-        try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
+    @Test
+    void redirectResponse_throwsIllegalStateException() throws Exception {
+        wireMock.stubFor(post(urlEqualTo(URL)).willReturn(aResponse().withStatus(301).withHeader("Location", "%s/moved".formatted(serverUrl()))));
+        wireMock.stubFor(get(urlEqualTo("/moved")).willReturn(aResponse().withStatus(200).withBody("{\"results\":[]}")));
 
-            httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
-            when(httpResponseMock.statusCode()).thenReturn(500);
-            when(httpResponseMock.body()).thenReturn("{\"error\":\"boom\"}");
+        var e = assertThrows(IllegalStateException.class, () -> task().run(runContextFactory.of(Map.of())));
 
-            when(
-                httpClientMock.send(
-                    any(HttpRequest.class),
-                    eq(HttpResponse.BodyHandlers.ofString())
-                )
-            ).thenReturn(httpResponseMock);
-
-            assertThrows(IllegalStateException.class, () -> task.run(runContext));
-        }
+        assertThat(e.getMessage(), is("Confluence API returned 301"));
+        wireMock.verify(1, postRequestedFor(urlEqualTo(URL)));
+        wireMock.verify(0, getRequestedFor(urlEqualTo("/moved")));
     }
 
     @Test
     void successfulResponse_returnsBody() throws Exception {
-        RunContext runContext = runContextFactory.of(Map.of());
+        wireMock.stubFor(post(urlEqualTo(URL)).willReturn(aResponse().withStatus(201).withBody("{\"id\":\"123\",\"title\":\"Title\"}")));
 
-        Create task = Create.builder()
-            .serverUrl(Property.ofValue("https://example.com"))
-            .username(Property.ofValue("user@example.com"))
-            .apiToken(Property.ofValue("token"))
-            .spaceId(Property.ofValue("SPACEKEY"))
-            .title(Property.ofValue("Title"))
-            .markdown(Property.ofValue("# Hello"))
-            .build();
+        var output = task().run(runContextFactory.of(Map.of()));
 
-        String json = "{\"id\":\"123\",\"title\":\"Title\"}";
-
-        HttpClient httpClientMock = Mockito.mock(HttpClient.class);
-        HttpResponse<String> httpResponseMock = Mockito.mock(HttpResponse.class);
-
-        try (MockedStatic<HttpClient> httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
-
-            httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
-            when(httpResponseMock.statusCode()).thenReturn(201);
-            when(httpResponseMock.body()).thenReturn(json);
-
-            when(
-                httpClientMock.send(
-                    any(HttpRequest.class),
-                    eq(HttpResponse.BodyHandlers.ofString())
-                )
-            ).thenReturn(httpResponseMock);
-
-            Create.Output output = task.run(runContext);
-            assertThat(output, is(notNullValue()));
-            assertThat(output.getValue(), is(notNullValue()));
-            assertThat(output.getValue(), containsString("\"id\":\"123\""));
-        }
+        assertThat(output.getValue(), containsString("\"id\":\"123\""));
+        wireMock.verify(
+            1,
+            postRequestedFor(urlEqualTo(URL))
+                .withHeader("Authorization", equalTo(AUTH))
+                .withHeader("Accept", equalTo("application/json"))
+                .withHeader("Content-Type", equalTo("application/json"))
+                .withRequestBody(equalToJson("{\"spaceId\":\"SPACEKEY\",\"title\":\"Title\",\"body\":{\"representation\":\"storage\",\"value\":\"<h1>Hello</h1>\\n\"}}"))
+        );
     }
 
     @Test
     void shouldSendEmbeddedPrivateAndRootLevelOnTheCreateUrl() throws Exception {
-        var runContext = runContextFactory.of(Map.of());
+        var url = "/wiki/api/v2/pages?embedded=true&private=true&root-level=true";
+        wireMock.stubFor(post(urlEqualTo(url)).willReturn(aResponse().withStatus(201).withBody("{\"id\":\"123\"}")));
 
         var task = Create.builder()
-            .serverUrl(Property.ofValue("https://example.com"))
+            .serverUrl(Property.ofValue(serverUrl()))
             .username(Property.ofValue("user@example.com"))
             .apiToken(Property.ofValue("token"))
             .spaceId(Property.ofValue("123456"))
@@ -132,24 +104,60 @@ class CreateTest {
             .rootLevel(Property.ofValue(true))
             .build();
 
-        var httpClientMock = Mockito.mock(HttpClient.class);
-        HttpResponse<String> httpResponseMock = Mockito.mock(HttpResponse.class);
+        var output = task.run(runContextFactory.of(Map.of()));
 
-        try (var httpClientStatic = Mockito.mockStatic(HttpClient.class)) {
-            httpClientStatic.when(HttpClient::newHttpClient).thenReturn(httpClientMock);
-            when(httpResponseMock.statusCode()).thenReturn(201);
-            when(httpResponseMock.body()).thenReturn("{\"id\":\"123\"}");
-            when(httpClientMock.send(any(HttpRequest.class), eq(HttpResponse.BodyHandlers.ofString())))
-                .thenAnswer(invocation -> {
-                    HttpRequest request = invocation.getArgument(0);
-                    assertThat(request.method(), is("POST"));
-                    assertThat(request.uri().getPath(), is("/wiki/api/v2/pages"));
-                    assertThat(request.uri().getQuery(), is("embedded=true&private=true&root-level=true"));
-                    return httpResponseMock;
-                });
+        assertThat(output.getValue(), containsString("\"id\":\"123\""));
+        wireMock.verify(1, postRequestedFor(urlEqualTo(url)));
+    }
 
-            var output = task.run(runContext);
-            assertThat(output.getValue(), containsString("\"id\":\"123\""));
-        }
+    @Test
+    void userHttpOptions_keepPluginAuth() throws Exception {
+        wireMock.stubFor(post(urlEqualTo(URL)).willReturn(aResponse().withStatus(201).withBody("{\"id\":\"123\"}")));
+
+        var output = task(timeout(Duration.ofSeconds(30))).run(runContextFactory.of(Map.of()));
+
+        assertThat(output.getValue(), containsString("\"id\":\"123\""));
+        wireMock.verify(1, postRequestedFor(urlEqualTo(URL)).withHeader("Authorization", equalTo(AUTH)));
+    }
+
+    @Test
+    void userHttpOptions_keepTimeout() {
+        wireMock.stubFor(post(urlEqualTo(URL)).willReturn(aResponse().withStatus(201).withBody("{}").withFixedDelay(3000)));
+
+        assertThrows(Exception.class, () -> task(timeout(Duration.ofMillis(500))).run(runContextFactory.of(Map.of())));
+    }
+
+    @Test
+    void userHttpOptions_cannotAllowFailedResponses() {
+        wireMock.stubFor(post(urlEqualTo(URL)).willReturn(aResponse().withStatus(500).withBody("{\"error\":\"boom\"}")));
+        var options = HttpConfiguration.builder().allowFailed(Property.ofValue(true)).build();
+
+        var e = assertThrows(IllegalStateException.class, () -> task(options).run(runContextFactory.of(Map.of())));
+
+        assertThat(e.getMessage(), is("Confluence API returned 500"));
+    }
+
+    private static HttpConfiguration timeout(Duration readIdleTimeout) {
+        return HttpConfiguration.builder()
+            .timeout(TimeoutConfiguration.builder().readIdleTimeout(Property.ofValue(readIdleTimeout)).build())
+            .build();
+    }
+
+    private static final String URL = "/wiki/api/v2/pages?embedded=false&private=false&root-level=false";
+
+    private Create task() {
+        return task(null);
+    }
+
+    private Create task(HttpConfiguration options) {
+        return Create.builder()
+            .options(options)
+            .serverUrl(Property.ofValue(serverUrl()))
+            .username(Property.ofValue("user@example.com"))
+            .apiToken(Property.ofValue("token"))
+            .spaceId(Property.ofValue("SPACEKEY"))
+            .title(Property.ofValue("Title"))
+            .markdown(Property.ofValue("# Hello"))
+            .build();
     }
 }

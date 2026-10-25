@@ -1,11 +1,6 @@
 package io.kestra.plugin.confluence.pages;
 
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -17,6 +12,7 @@ import com.vladsch.flexmark.util.data.MutableDataSet;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -26,7 +22,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -129,13 +124,7 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
 
     @Override
     public Update.Output run(RunContext runContext) throws Exception {
-        var logger = runContext.logger();
-
         String apiBaseUrl = buildApiBaseUrl(runContext);
-        String rUsername = runContext.render(this.username).as(String.class)
-            .orElseThrow(() -> new IllegalArgumentException("username is required"));
-        String rApiToken = runContext.render(this.apiToken).as(String.class)
-            .orElseThrow(() -> new IllegalArgumentException("apiToken is required"));
         String rPageId = runContext.render(this.pageId).as(String.class)
             .orElseThrow(() -> new IllegalArgumentException("pageId is required"));
         String rStatus = runContext.render(this.status).as(String.class)
@@ -175,9 +164,9 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
             throw new IllegalArgumentException("versionInfo.message is required");
         }
 
-        MutableDataSet options = new MutableDataSet();
-        Parser parser = Parser.builder(options).build();
-        HtmlRenderer renderer = HtmlRenderer.builder(options).build();
+        var flexmarkOptions = new MutableDataSet();
+        var parser = Parser.builder(flexmarkOptions).build();
+        var renderer = HtmlRenderer.builder(flexmarkOptions).build();
         Node document = parser.parse(rMarkdown);
         String htmlBody = renderer.render(document);
 
@@ -205,27 +194,8 @@ public class Update extends AbstractConfluenceTask implements RunnableTask<Updat
             payload.put("ownerId", rOwnerId);
         }
 
-        String auth = rUsername + ":" + rApiToken;
-        String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
-
-        String url = apiBaseUrl + "/pages/" + rPageId;
-
-        HttpClient client = HttpClient.newHttpClient();
-        HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .header("Authorization", "Basic " + encodedAuth)
-            .header("Accept", "application/json")
-            .header("Content-Type", "application/json")
-            .PUT(HttpRequest.BodyPublishers.ofString(payload.toString()))
-            .build();
-
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-        String responseBody = response.body() != null ? response.body() : "";
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            logger.error("Confluence update failed: status={} body={}", response.statusCode(), responseBody);
-            throw new IllegalStateException("Confluence API returned " + response.statusCode());
-        }
+        var response = send(runContext, "PUT", URI.create("%s/pages/%s".formatted(apiBaseUrl, rPageId)), payload.toString());
+        var responseBody = response.getBody() != null ? response.getBody() : "";
 
         return Output.builder()
             .value(responseBody)

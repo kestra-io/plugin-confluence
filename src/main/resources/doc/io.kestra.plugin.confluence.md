@@ -4,7 +4,7 @@ Create, list, and update Confluence pages from Kestra flows using Markdown conte
 
 ## Authentication
 
-Set `serverUrl` (e.g. `https://your-domain.atlassian.net`), `username` (your Atlassian account email), and `apiToken` (your Atlassian API token) on each task. For self-hosted Confluence, override `apiPath` — it defaults to `/wiki/api/v2` for Cloud. Store credentials in [secrets](https://kestra.io/docs/concepts/secret) and set them on each task.
+Set `serverUrl` (e.g. `https://your-domain.atlassian.net`), `username` (your Atlassian account email), and `apiToken` (your Atlassian API token) on each task. For self-hosted Confluence, override `apiPath` — it defaults to `/wiki/api/v2` for Cloud. Store credentials in [secrets](https://kestra.io/docs/concepts/secret) and set them on each task. Use the optional `options` property to configure the HTTP client (timeouts, proxy, SSL).
 
 ## Tasks
 
