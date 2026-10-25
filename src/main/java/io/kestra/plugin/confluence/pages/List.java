@@ -240,7 +240,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         return outputBuilder.build();
     }
 
-    // `_links.next` is a site-relative URL; only its cursor is kept so a custom `apiPath` is still used
+    // `_links.next` is a site-relative URL, so only its cursor is kept and a custom `apiPath` is still used
     private static String nextCursor(JsonNode responseJson) {
         var next = responseJson.path("_links").path("next").asText(null);
         var query = next == null ? null : URI.create(next).getQuery();
