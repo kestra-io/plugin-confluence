@@ -3,15 +3,12 @@ package io.kestra.plugin.confluence.pages;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URI;
-import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -45,7 +42,7 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 @Schema(
     title = "List Confluence pages as Markdown",
-    description = "Retrieves pages via REST API v2, converts storage HTML to Markdown, and supports filtering by space, page, status, subtype, or title. Default limit is 25 with statuses current and archived; FETCH_ONE forces limit 1, and STORE writes results to internal storage."
+    description = "Retrieves pages via REST API v2, converts storage HTML to Markdown, and supports filtering by space, page, status, subtype, or title. Default limit is 25 with statuses current and archived; FETCH returns one page, FETCH_ONE forces limit 1, and STORE follows every page and writes the results to internal storage."
 )
 @Plugin(
     examples = {
@@ -68,9 +65,6 @@ import lombok.experimental.SuperBuilder;
 )
 public class List extends AbstractConfluenceTask implements RunnableTask<List.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofJson();
-    // matches one `<url>; ...; rel="next"` entry of a Link header, also when rel lists several values (rel="prev next")
-    private static final Pattern NEXT_LINK = Pattern.compile("<([^>]*)>[^<]*?\\brel\\s*=\\s*\"?(?:[^\"<]*\\s)?next(?=[\\s\",;]|$)", Pattern.CASE_INSENSITIVE);
-
     @Schema(
         title = "Page IDs to filter",
         description = "Filter results by one or more page IDs (comma-separated). Max items: 250."
@@ -127,7 +121,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
 
     @Schema(
         title = "Fetch type",
-        description = "Determines how results are returned. FETCH returns a list, FETCH_ONE limits to the first page, STORE writes all pages to internal storage and returns a URI. Default: FETCH."
+        description = "Determines how results are returned. FETCH returns one page of results as a list, FETCH_ONE returns the first result, STORE follows every page and writes them to internal storage, returning a URI. Default: FETCH."
     )
     @Builder.Default
     @PluginProperty(group = "processing")
@@ -201,59 +195,45 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
             fileWriter = new FileOutputStream(tempFile);
         }
 
-        // STORE follows the cursor until Confluence has no next page; FETCH and FETCH_ONE return a single page
-        // and expose the next cursor so it can be passed back in as `cursor`.
-        String nextCursor = rCursor;
-        Set<String> seenCursors = new HashSet<>();
-        if (rCursor != null) {
-            seenCursors.add(rCursor);
-        }
+        var nextCursor = rCursor;
         try {
             do {
                 if (nextCursor != null) {
                     params.put("cursor", nextCursor);
                 }
 
-                String query = params.entrySet().stream()
+                var query = params.entrySet().stream()
                     .filter(e -> StringUtils.isNotBlank(e.getValue()))
-                    .map(
-                        e -> URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8)
-                            + "=" + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8)
-                    )
+                    .map(e -> "%s=%s".formatted(URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8), URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8)))
                     .collect(Collectors.joining("&"));
+                var url = query.isEmpty() ? "%s/pages".formatted(apiBaseUrl) : "%s/pages?%s".formatted(apiBaseUrl, query);
 
-                String url = apiBaseUrl + "/pages";
-                if (!query.isEmpty()) {
-                    url += "?" + query;
-                }
-
-                HttpRequest request = HttpRequest.newBuilder()
+                var request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
-                    .header("Authorization", "Basic " + encodedAuth)
+                    .header("Authorization", "Basic %s".formatted(encodedAuth))
                     .header("Accept", "application/json")
                     .GET()
                     .build();
 
-                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                var response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
                 if (response.statusCode() != 200) {
                     logger.error("Confluence request failed: status={} body={}", response.statusCode(), response.body());
-                    throw new IllegalStateException("Confluence API returned " + response.statusCode());
+                    throw new IllegalStateException("Confluence API returned %s".formatted(response.statusCode()));
                 }
 
-                JsonNode responseJson = mapper.readTree(response.body());
-                JsonNode results = responseJson.get("results");
+                var responseJson = mapper.readTree(response.body());
+                var results = responseJson.get("results");
 
                 if (results != null && results.isArray()) {
                     for (JsonNode pageInfo : results) {
-                        OutputChild page = convertPage(pageInfo, bodyFormat, converter);
+                        var page = convertPage(pageInfo, bodyFormat, converter);
                         if (page != null) {
                             switch (rFetchType) {
                                 case FETCH, FETCH_ONE:
                                     markdownPages.add(page);
                                     break;
                                 case STORE:
-                                    // fail the task rather than silently storing a partial result
                                     FileSerde.write(fileWriter, page);
                                     break;
                             }
@@ -261,9 +241,10 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
                     }
                 }
 
-                nextCursor = extractNextCursor(response, responseJson);
-                if (rFetchType == FetchType.STORE && nextCursor != null && !seenCursors.add(nextCursor)) {
-                    throw new IllegalStateException("Confluence returned the pagination cursor '" + nextCursor + "' twice, stopping to avoid an infinite loop");
+                var previousCursor = nextCursor;
+                nextCursor = nextCursor(responseJson);
+                if (rFetchType == FetchType.STORE && nextCursor != null && nextCursor.equals(previousCursor)) {
+                    throw new IllegalStateException("Confluence returned the pagination cursor '%s' twice, stopping to avoid an infinite loop".formatted(nextCursor));
                 }
             } while (rFetchType == FetchType.STORE && nextCursor != null);
         } finally {
@@ -272,7 +253,7 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
             }
         }
 
-        Output.OutputBuilder outputBuilder = Output.builder().nextCursor(nextCursor);
+        var outputBuilder = Output.builder().nextCursor(nextCursor);
         if (rFetchType == FetchType.STORE) {
             URI storageUri = runContext.storage().putFile(tempFile);
             outputBuilder.uri(storageUri);
@@ -283,37 +264,19 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         return outputBuilder.build();
     }
 
-    /**
-     * Confluence v2 returns the next page link both in the body ({@code _links.next}) and in the
-     * {@code Link: <...>; rel="next"} header. The link is relative to the site, so only its cursor is kept.
-     */
-    private static String extractNextCursor(HttpResponse<String> response, JsonNode responseJson) {
-        String nextLink = null;
-        JsonNode linkNode = responseJson.path("_links").path("next");
-        if (linkNode.isTextual()) {
-            nextLink = linkNode.asText();
-        } else if (response.headers() != null) {
-            nextLink = response.headers().allValues("Link").stream()
-                .map(NEXT_LINK::matcher)
-                .filter(Matcher::find)
-                .map(m -> m.group(1))
-                .findFirst()
-                .orElse(null);
-        }
-
-        if (nextLink == null || !nextLink.contains("?")) {
+    // `_links.next` is a site-relative URL; only its cursor is kept so a custom `apiPath` is still used
+    private static String nextCursor(JsonNode responseJson) {
+        var next = responseJson.path("_links").path("next").asText(null);
+        var query = next == null ? null : URI.create(next).getQuery();
+        if (query == null) {
             return null;
         }
-
-        for (String pair : nextLink.substring(nextLink.indexOf('?') + 1).split("&")) {
-            int eq = pair.indexOf('=');
-            if (eq > 0 && pair.substring(0, eq).equals("cursor")) {
-                // keep a literal '+' as '+': cursors are opaque tokens, not form-encoded text
-                String rawCursor = pair.substring(eq + 1).replace("+", "%2B");
-                return StringUtils.trimToNull(URLDecoder.decode(rawCursor, StandardCharsets.UTF_8));
-            }
-        }
-        return null;
+        return Arrays.stream(query.split("&"))
+            .filter(pair -> pair.startsWith("cursor="))
+            .map(pair -> StringUtils.trimToNull(pair.substring("cursor=".length())))
+            .filter(Objects::nonNull)
+            .findFirst()
+            .orElse(null);
     }
 
     @SuppressWarnings("unchecked")
