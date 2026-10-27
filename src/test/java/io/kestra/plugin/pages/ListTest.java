@@ -17,6 +17,7 @@ import io.kestra.plugin.confluence.pages.List;
 import jakarta.inject.Inject;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.absent;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -84,7 +85,7 @@ class ListTest extends WireMockTest {
             .limit(Property.ofValue(10))
             .build();
 
-        var url = "%s?space-ids=1&page-ids=1%%2C2&status=current%%2Carchived&limit=10&body-format=storage".formatted(PAGES_PATH);
+        var url = "%s?space-id=1&id=1%%2C2&status=current%%2Carchived&limit=10&body-format=storage".formatted(PAGES_PATH);
         String json = "{ \"results\": [ { \"title\": \"Test Page\", \"body\": { \"storage\": { \"value\": \"<h1>Hello World</h1><p>This is a paragraph.</p>\" } } } ] }";
         stubPage(url, 200, json);
 
@@ -155,7 +156,7 @@ class ListTest extends WireMockTest {
         var runContext = runContextFactory.of(Map.of());
         var task = task(FetchType.STORE, null);
 
-        stubPage(FIRST_PAGE_URL, 200, page("Page 1", "/wiki/api/v2/pages?space-ids=123456&cursor=abc%3D%3D123&limit=1"));
+        stubPage(FIRST_PAGE_URL, 200, page("Page 1", "/wiki/api/v2/pages?space-id=123456&cursor=abc%3D%3D123&limit=1"));
         stubPage("%s&cursor=abc%%3D%%3D123".formatted(FIRST_PAGE_URL), 200, page("Page 2", null));
 
         var output = task.run(runContext);
@@ -230,8 +231,109 @@ class ListTest extends WireMockTest {
         assertThat(output.getNextCursor(), is("abc123"));
     }
 
+    @Test
+    void filtersSingleSpace() throws Exception {
+        var task = List.builder()
+            .serverUrl(Property.ofValue(serverUrl()))
+            .username(Property.ofValue("user@example.com"))
+            .apiToken(Property.ofValue("token"))
+            .spaceIds(Property.ofValue(java.util.List.of(294916)))
+            .build();
+        stubSpacePages();
+
+        var output = task.run(runContextFactory.of(Map.of()));
+
+        assertThat(output.getChildren(), hasSize(2));
+        assertThat(output.getChildren().stream().map(child -> child.getRawResponse().get("spaceId")).toList(), contains("294916", "294916"));
+        wireMock.verify(1, getRequestedFor(urlPathEqualTo(PAGES_PATH)).withQueryParam("space-id", equalTo("294916")));
+    }
+
+    @Test
+    void filtersMultipleRenderedSpaces() throws Exception {
+        var task = List.builder()
+            .serverUrl(Property.ofValue(serverUrl()))
+            .username(Property.ofValue("user@example.com"))
+            .apiToken(Property.ofValue("token"))
+            .spaceIds(Property.ofExpression("{{ spaces }}"))
+            .build();
+        stubSpacePages();
+        wireMock.stubFor(
+            get(urlPathEqualTo(PAGES_PATH))
+                .withQueryParam("space-id", equalTo("294916,654321"))
+                .atPriority(1)
+                .willReturn(aResponse().withBody(spacePages("294916", "654321")))
+        );
+
+        var output = task.run(runContextFactory.of(Map.of("spaces", java.util.List.of(294916, 654321))));
+
+        assertThat(output.getChildren(), hasSize(2));
+        assertThat(output.getChildren().stream().map(child -> child.getRawResponse().get("spaceId")).toList(), contains("294916", "654321"));
+        wireMock.verify(1, getRequestedFor(urlPathEqualTo(PAGES_PATH)).withQueryParam("space-id", equalTo("294916,654321")));
+    }
+
+    @Test
+    void filtersPageIdsWithoutSpaces() throws Exception {
+        var task = List.builder()
+            .serverUrl(Property.ofValue(serverUrl()))
+            .username(Property.ofValue("user@example.com"))
+            .apiToken(Property.ofValue("token"))
+            .pageIds(Property.ofValue(java.util.List.of(10, 20)))
+            .build();
+        wireMock.stubFor(
+            get(urlPathEqualTo(PAGES_PATH))
+                .withQueryParam("id", equalTo("10,20"))
+                .withQueryParam("space-id", absent())
+                .willReturn(aResponse().withBody(spacePages("294916", "654321")))
+        );
+
+        var output = task.run(runContextFactory.of(Map.of()));
+
+        assertThat(output.getChildren(), hasSize(2));
+        wireMock.verify(1, getRequestedFor(urlPathEqualTo(PAGES_PATH)).withQueryParam("id", equalTo("10,20")));
+    }
+
+    @Test
+    void omittedFiltersReturnsPagesFromEverySpace() throws Exception {
+        var task = List.builder()
+            .serverUrl(Property.ofValue(serverUrl()))
+            .username(Property.ofValue("user@example.com"))
+            .apiToken(Property.ofValue("token"))
+            .build();
+        stubSpacePages();
+
+        var output = task.run(runContextFactory.of(Map.of()));
+
+        assertThat(output.getChildren().stream().map(child -> child.getRawResponse().get("spaceId")).toList(), contains("294916", "294916", "654321"));
+        wireMock.verify(
+            1,
+            getRequestedFor(urlPathEqualTo(PAGES_PATH))
+                .withQueryParam("space-id", absent())
+                .withQueryParam("id", absent())
+                .withQueryParam("space-ids", absent())
+                .withQueryParam("page-ids", absent())
+        );
+    }
+
+    // Like Confluence, ignore unknown query parameters and return every space unless the supported filter is present.
+    private void stubSpacePages() {
+        wireMock.stubFor(
+            get(urlPathEqualTo(PAGES_PATH)).atPriority(10)
+                .willReturn(aResponse().withBody(spacePages("294916", "294916", "654321")))
+        );
+        wireMock.stubFor(
+            get(urlPathEqualTo(PAGES_PATH)).withQueryParam("space-id", equalTo("294916")).atPriority(1)
+                .willReturn(aResponse().withBody(spacePages("294916", "294916")))
+        );
+    }
+
+    private static String spacePages(String... spaces) {
+        return "{\"results\":[" + java.util.Arrays.stream(spaces)
+            .map(space -> "{\"spaceId\":\"%s\",\"title\":\"Page in %s\",\"body\":{\"storage\":{\"value\":\"<p>Content</p>\"}}}".formatted(space, space))
+            .collect(java.util.stream.Collectors.joining(",")) + "]}";
+    }
+
     private static final String PAGES_PATH = "/wiki/api/v2/pages";
-    private static final String FIRST_PAGE_URL = "/wiki/api/v2/pages?space-ids=123456&status=current%2Carchived&limit=1&body-format=storage";
+    private static final String FIRST_PAGE_URL = "/wiki/api/v2/pages?space-id=123456&status=current%2Carchived&limit=1&body-format=storage";
 
     // urlEqualTo matches the raw url (path and query), a bare path matches any query
     private void stubPage(String url, int status, String body) {

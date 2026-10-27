@@ -44,7 +44,7 @@ import lombok.experimental.SuperBuilder;
 @Plugin(
     examples = {
         @Example(
-            title = "Fetch Confluence pages as Markdown",
+            title = "Fetch Confluence pages from a space as Markdown",
             full = true,
             code = """
                 id: fetch-confluence-pages
@@ -56,6 +56,7 @@ import lombok.experimental.SuperBuilder;
                     serverUrl: https://your-domain.atlassian.net
                     username: user@example.com
                     apiToken: "{{ secret('CONFLUENCE_API_TOKEN') }}"
+                    spaceIds: [294916]
                 """
         )
     }
@@ -152,13 +153,13 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
             String spaceIdsParam = rSpaceIds.stream()
                 .map(String::valueOf)
                 .collect(Collectors.joining(","));
-            params.put("space-ids", spaceIdsParam);
+            params.put("space-id", spaceIdsParam);
         }
         if (rPageIds != null) {
             String pageIdsParam = rPageIds.stream()
                 .map(String::valueOf)
                 .collect(Collectors.joining(","));
-            params.put("page-ids", pageIdsParam);
+            params.put("id", pageIdsParam);
         }
         if (rTitle != null) {
             params.put("title", rTitle);
