@@ -2,7 +2,9 @@ package io.kestra.plugin.pages;
 
 import java.net.URI;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
@@ -44,8 +46,8 @@ class ListTest extends WireMockTest {
         List task = List.builder()
             .username(Property.ofValue("user@example.com"))
             .apiToken(Property.ofValue("token"))
-            .pageIds(Property.ofValue(java.util.List.of(1, 2)))
-            .spaceIds(Property.ofValue(java.util.List.of(1)))
+            .pageIds(Property.ofValue(java.util.List.of(1L, 2L)))
+            .spaceIds(Property.ofValue(java.util.List.of(1L)))
             .limit(Property.ofValue(10))
             .build();
         assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
@@ -59,8 +61,8 @@ class ListTest extends WireMockTest {
             .serverUrl(Property.ofValue(serverUrl()))
             .username(Property.ofValue("user@example.com"))
             .apiToken(Property.ofValue("token"))
-            .pageIds(Property.ofValue(java.util.List.of(1, 2)))
-            .spaceIds(Property.ofValue(java.util.List.of(1)))
+            .pageIds(Property.ofValue(java.util.List.of(1L, 2L)))
+            .spaceIds(Property.ofValue(java.util.List.of(1L)))
             .limit(Property.ofValue(10))
             .build();
 
@@ -80,8 +82,8 @@ class ListTest extends WireMockTest {
             .serverUrl(Property.ofValue(serverUrl()))
             .username(Property.ofValue("user@example.com"))
             .apiToken(Property.ofValue("token"))
-            .pageIds(Property.ofValue(java.util.List.of(1, 2)))
-            .spaceIds(Property.ofValue(java.util.List.of(1)))
+            .pageIds(Property.ofValue(java.util.List.of(1L, 2L)))
+            .spaceIds(Property.ofValue(java.util.List.of(1L)))
             .limit(Property.ofValue(10))
             .build();
 
@@ -232,12 +234,9 @@ class ListTest extends WireMockTest {
     }
 
     @Test
-    void filtersSingleSpace() throws Exception {
-        var task = List.builder()
-            .serverUrl(Property.ofValue(serverUrl()))
-            .username(Property.ofValue("user@example.com"))
-            .apiToken(Property.ofValue("token"))
-            .spaceIds(Property.ofValue(java.util.List.of(294916)))
+    void spaceIds_filtersSingleSpace() throws Exception {
+        var task = builder()
+            .spaceIds(Property.ofValue(java.util.List.of(294916L)))
             .build();
         stubSpacePages();
 
@@ -249,11 +248,8 @@ class ListTest extends WireMockTest {
     }
 
     @Test
-    void filtersMultipleRenderedSpaces() throws Exception {
-        var task = List.builder()
-            .serverUrl(Property.ofValue(serverUrl()))
-            .username(Property.ofValue("user@example.com"))
-            .apiToken(Property.ofValue("token"))
+    void spaceIds_filtersMultipleRenderedSpaces() throws Exception {
+        var task = builder()
             .spaceIds(Property.ofExpression("{{ spaces }}"))
             .build();
         stubSpacePages();
@@ -272,12 +268,9 @@ class ListTest extends WireMockTest {
     }
 
     @Test
-    void filtersPageIdsWithoutSpaces() throws Exception {
-        var task = List.builder()
-            .serverUrl(Property.ofValue(serverUrl()))
-            .username(Property.ofValue("user@example.com"))
-            .apiToken(Property.ofValue("token"))
-            .pageIds(Property.ofValue(java.util.List.of(10, 20)))
+    void pageIds_filtersWithoutSpaces() throws Exception {
+        var task = builder()
+            .pageIds(Property.ofValue(java.util.List.of(10L, 20L)))
             .build();
         wireMock.stubFor(
             get(urlPathEqualTo(PAGES_PATH))
@@ -293,11 +286,8 @@ class ListTest extends WireMockTest {
     }
 
     @Test
-    void omittedFiltersReturnsPagesFromEverySpace() throws Exception {
-        var task = List.builder()
-            .serverUrl(Property.ofValue(serverUrl()))
-            .username(Property.ofValue("user@example.com"))
-            .apiToken(Property.ofValue("token"))
+    void omittedFilters_returnsPagesFromEverySpace() throws Exception {
+        var task = builder()
             .build();
         stubSpacePages();
 
@@ -314,6 +304,36 @@ class ListTest extends WireMockTest {
         );
     }
 
+    @Test
+    void ids_supportInt64ValuesFromExpressions() throws Exception {
+        var task = builder()
+            .spaceIds(Property.ofExpression("{{ spaces }}"))
+            .pageIds(Property.ofExpression("{{ pages }}"))
+            .build();
+        wireMock.stubFor(
+            get(urlPathEqualTo(PAGES_PATH))
+                .withQueryParam("space-id", equalTo("4294967296,4294967297"))
+                .withQueryParam("id", equalTo("8589934592,8589934593"))
+                .willReturn(aResponse().withBody(spacePages("4294967296", "4294967297")))
+        );
+
+        var output = task.run(
+            runContextFactory.of(
+                Map.of(
+                    "spaces", java.util.List.of(4294967296L, 4294967297L),
+                    "pages", java.util.List.of(8589934592L, 8589934593L)
+                )
+            )
+        );
+
+        assertThat(output.getChildren().stream().map(child -> child.getRawResponse().get("spaceId")).toList(), contains("4294967296", "4294967297"));
+        wireMock.verify(
+            1, getRequestedFor(urlPathEqualTo(PAGES_PATH))
+                .withQueryParam("space-id", equalTo("4294967296,4294967297"))
+                .withQueryParam("id", equalTo("8589934592,8589934593"))
+        );
+    }
+
     // Like Confluence, ignore unknown query parameters and return every space unless the supported filter is present.
     private void stubSpacePages() {
         wireMock.stubFor(
@@ -327,9 +347,11 @@ class ListTest extends WireMockTest {
     }
 
     private static String spacePages(String... spaces) {
-        return "{\"results\":[" + java.util.Arrays.stream(spaces)
-            .map(space -> "{\"spaceId\":\"%s\",\"title\":\"Page in %s\",\"body\":{\"storage\":{\"value\":\"<p>Content</p>\"}}}".formatted(space, space))
-            .collect(java.util.stream.Collectors.joining(",")) + "]}";
+        return "{\"results\":[%s]}".formatted(
+            Arrays.stream(spaces)
+                .map(space -> "{\"spaceId\":\"%s\",\"title\":\"Page in %s\",\"body\":{\"storage\":{\"value\":\"<p>Content</p>\"}}}".formatted(space, space))
+                .collect(Collectors.joining(","))
+        );
     }
 
     private static final String PAGES_PATH = "/wiki/api/v2/pages";
@@ -341,12 +363,16 @@ class ListTest extends WireMockTest {
         wireMock.stubFor(mapping.willReturn(aResponse().withStatus(status).withBody(body)));
     }
 
-    private List task(FetchType fetchType, String cursor) {
-        var builder = List.builder()
+    private List.ListBuilder<?, ?> builder() {
+        return List.builder()
             .serverUrl(Property.ofValue(serverUrl()))
             .username(Property.ofValue("user@example.com"))
-            .apiToken(Property.ofValue("token"))
-            .spaceIds(Property.ofValue(java.util.List.of(123456)))
+            .apiToken(Property.ofValue("token"));
+    }
+
+    private List task(FetchType fetchType, String cursor) {
+        var builder = builder()
+            .spaceIds(Property.ofValue(java.util.List.of(123456L)))
             .limit(Property.ofValue(1))
             .fetchType(Property.ofValue(fetchType));
         if (cursor != null) {

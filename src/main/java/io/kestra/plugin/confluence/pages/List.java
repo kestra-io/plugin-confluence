@@ -67,13 +67,13 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         title = "Page IDs to filter",
         description = "Filter results by one or more page IDs (comma-separated). Max items: 250."
     )
-    private Property<java.util.@Size(max = 250) List<Integer>> pageIds;
+    private Property<java.util.@Size(max = 250) List<Long>> pageIds;
 
     @Schema(
         title = "Space IDs to filter",
         description = "Filter results by one or more Confluence space IDs (comma-separated). Max items: 100."
     )
-    private Property<java.util.@Size(max = 100) List<Integer>> spaceIds;
+    private Property<java.util.@Size(max = 100) List<Long>> spaceIds;
 
     @Schema(
         title = "Sort order of results",
@@ -132,8 +132,8 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
 
         String apiBaseUrl = buildApiBaseUrl(runContext);
 
-        java.util.List<Integer> rSpaceIds = runContext.render(this.spaceIds).asList(Integer.class);
-        java.util.List<Integer> rPageIds = runContext.render(this.pageIds).asList(Integer.class);
+        java.util.List<Long> rSpaceIds = runContext.render(this.spaceIds).asList(Long.class);
+        java.util.List<Long> rPageIds = runContext.render(this.pageIds).asList(Long.class);
         String rTitle = runContext.render(this.title).as(String.class).orElse(null);
         String rSubType = runContext.render(this.subType).as(String.class).orElse(null);
         java.util.List<String> rStatus = runContext.render(this.status).asList(String.class);
@@ -149,18 +149,8 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         }
 
         Map<String, String> params = new LinkedHashMap<>();
-        if (rSpaceIds != null) {
-            String spaceIdsParam = rSpaceIds.stream()
-                .map(String::valueOf)
-                .collect(Collectors.joining(","));
-            params.put("space-id", spaceIdsParam);
-        }
-        if (rPageIds != null) {
-            String pageIdsParam = rPageIds.stream()
-                .map(String::valueOf)
-                .collect(Collectors.joining(","));
-            params.put("id", pageIdsParam);
-        }
+        params.put("space-id", rSpaceIds.stream().map(String::valueOf).collect(Collectors.joining(",")));
+        params.put("id", rPageIds.stream().map(String::valueOf).collect(Collectors.joining(",")));
         if (rTitle != null) {
             params.put("title", rTitle);
         }
