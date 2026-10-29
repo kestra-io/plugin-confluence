@@ -44,7 +44,7 @@ import lombok.experimental.SuperBuilder;
 @Plugin(
     examples = {
         @Example(
-            title = "Fetch Confluence pages as Markdown",
+            title = "Fetch Confluence pages from a space as Markdown",
             full = true,
             code = """
                 id: fetch-confluence-pages
@@ -56,6 +56,7 @@ import lombok.experimental.SuperBuilder;
                     serverUrl: https://your-domain.atlassian.net
                     username: user@example.com
                     apiToken: "{{ secret('CONFLUENCE_API_TOKEN') }}"
+                    spaceIds: [294916]
                 """
         )
     }
@@ -64,15 +65,17 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
     private static final ObjectMapper MAPPER = JacksonMapper.ofJson();
     @Schema(
         title = "Page IDs to filter",
-        description = "Filter results by one or more page IDs (comma-separated). Max items: 250."
+        description = "Filter results by a list of page IDs, for example [294916]. Max items: 250."
     )
-    private Property<java.util.@Size(max = 250) List<Integer>> pageIds;
+    @PluginProperty(group = "processing")
+    private Property<java.util.@Size(max = 250) List<Long>> pageIds;
 
     @Schema(
         title = "Space IDs to filter",
-        description = "Filter results by one or more Confluence space IDs (comma-separated). Max items: 100."
+        description = "Filter results by a list of Confluence space IDs, for example [294916]. Max items: 100."
     )
-    private Property<java.util.@Size(max = 100) List<Integer>> spaceIds;
+    @PluginProperty(group = "processing")
+    private Property<java.util.@Size(max = 100) List<Long>> spaceIds;
 
     @Schema(
         title = "Sort order of results",
@@ -131,8 +134,9 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
 
         String apiBaseUrl = buildApiBaseUrl(runContext);
 
-        java.util.List<Integer> rSpaceIds = runContext.render(this.spaceIds).asList(Integer.class);
-        java.util.List<Integer> rPageIds = runContext.render(this.pageIds).asList(Integer.class);
+        // Literal YAML lists retain Integer elements even when rendered with Long.class.
+        java.util.List<?> rSpaceIds = runContext.render(this.spaceIds).asList(Long.class);
+        java.util.List<?> rPageIds = runContext.render(this.pageIds).asList(Long.class);
         String rTitle = runContext.render(this.title).as(String.class).orElse(null);
         String rSubType = runContext.render(this.subType).as(String.class).orElse(null);
         java.util.List<String> rStatus = runContext.render(this.status).asList(String.class);
@@ -148,18 +152,8 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
         }
 
         Map<String, String> params = new LinkedHashMap<>();
-        if (rSpaceIds != null) {
-            String spaceIdsParam = rSpaceIds.stream()
-                .map(String::valueOf)
-                .collect(Collectors.joining(","));
-            params.put("space-ids", spaceIdsParam);
-        }
-        if (rPageIds != null) {
-            String pageIdsParam = rPageIds.stream()
-                .map(String::valueOf)
-                .collect(Collectors.joining(","));
-            params.put("page-ids", pageIdsParam);
-        }
+        params.put("space-id", rSpaceIds.stream().map(String::valueOf).collect(Collectors.joining(",")));
+        params.put("id", rPageIds.stream().map(String::valueOf).collect(Collectors.joining(",")));
         if (rTitle != null) {
             params.put("title", rTitle);
         }
