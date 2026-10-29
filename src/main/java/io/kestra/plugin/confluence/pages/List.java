@@ -65,14 +65,16 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
     private static final ObjectMapper MAPPER = JacksonMapper.ofJson();
     @Schema(
         title = "Page IDs to filter",
-        description = "Filter results by one or more page IDs (comma-separated). Max items: 250."
+        description = "Filter results by a list of page IDs, for example [294916]. Max items: 250."
     )
+    @PluginProperty(group = "processing")
     private Property<java.util.@Size(max = 250) List<Long>> pageIds;
 
     @Schema(
         title = "Space IDs to filter",
-        description = "Filter results by one or more Confluence space IDs (comma-separated). Max items: 100."
+        description = "Filter results by a list of Confluence space IDs, for example [294916]. Max items: 100."
     )
+    @PluginProperty(group = "processing")
     private Property<java.util.@Size(max = 100) List<Long>> spaceIds;
 
     @Schema(
@@ -132,8 +134,9 @@ public class List extends AbstractConfluenceTask implements RunnableTask<List.Ou
 
         String apiBaseUrl = buildApiBaseUrl(runContext);
 
-        java.util.List<Long> rSpaceIds = runContext.render(this.spaceIds).asList(Long.class);
-        java.util.List<Long> rPageIds = runContext.render(this.pageIds).asList(Long.class);
+        // Literal YAML lists retain Integer elements even when rendered with Long.class.
+        java.util.List<?> rSpaceIds = runContext.render(this.spaceIds).asList(Long.class);
+        java.util.List<?> rPageIds = runContext.render(this.pageIds).asList(Long.class);
         String rTitle = runContext.render(this.title).as(String.class).orElse(null);
         String rSubType = runContext.render(this.subType).as(String.class).orElse(null);
         java.util.List<String> rStatus = runContext.render(this.status).asList(String.class);

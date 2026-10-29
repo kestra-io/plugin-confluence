@@ -57,10 +57,7 @@ class ListTest extends WireMockTest {
     void non2xxResponse_throwsIllegalStateException() throws Exception {
         RunContext runContext = runContextFactory.of(Map.of());
 
-        List task = List.builder()
-            .serverUrl(Property.ofValue(serverUrl()))
-            .username(Property.ofValue("user@example.com"))
-            .apiToken(Property.ofValue("token"))
+        List task = builder()
             .pageIds(Property.ofValue(java.util.List.of(1L, 2L)))
             .spaceIds(Property.ofValue(java.util.List.of(1L)))
             .limit(Property.ofValue(10))
@@ -78,10 +75,7 @@ class ListTest extends WireMockTest {
     void successfulResponse_parsesMarkdown() throws Exception {
         RunContext runContext = runContextFactory.of(Map.of());
 
-        List task = List.builder()
-            .serverUrl(Property.ofValue(serverUrl()))
-            .username(Property.ofValue("user@example.com"))
-            .apiToken(Property.ofValue("token"))
+        List task = builder()
             .pageIds(Property.ofValue(java.util.List.of(1L, 2L)))
             .spaceIds(Property.ofValue(java.util.List.of(1L)))
             .limit(Property.ofValue(10))
@@ -331,6 +325,29 @@ class ListTest extends WireMockTest {
             1, getRequestedFor(urlPathEqualTo(PAGES_PATH))
                 .withQueryParam("space-id", equalTo("4294967296,4294967297"))
                 .withQueryParam("id", equalTo("8589934592,8589934593"))
+        );
+    }
+
+    @Test
+    void ids_supportSmallAndInt64ValuesFromUncachedLists() throws Exception {
+        var task = builder()
+            .spaceIds(Property.ofValue(java.util.List.of(294916L, 4294967296L)).skipCache())
+            .pageIds(Property.ofValue(java.util.List.of(294916L, 4294967296L)).skipCache())
+            .build();
+        wireMock.stubFor(
+            get(urlPathEqualTo(PAGES_PATH))
+                .withQueryParam("space-id", equalTo("294916,4294967296"))
+                .withQueryParam("id", equalTo("294916,4294967296"))
+                .willReturn(aResponse().withBody(spacePages("294916", "4294967296")))
+        );
+
+        var output = task.run(runContextFactory.of(Map.of()));
+
+        assertThat(output.getChildren().stream().map(child -> child.getRawResponse().get("spaceId")).toList(), contains("294916", "4294967296"));
+        wireMock.verify(
+            1, getRequestedFor(urlPathEqualTo(PAGES_PATH))
+                .withQueryParam("space-id", equalTo("294916,4294967296"))
+                .withQueryParam("id", equalTo("294916,4294967296"))
         );
     }
 
