@@ -55,6 +55,11 @@ dependencies {
 
 }
 
+configurations.configureEach {
+    // enforcedPlatform strictly pins jsoup below the patched version, so it must be forced.
+    resolutionStrategy.force 'org.jsoup:jsoup:1.24.1'
+}
+
 
 /**********************************************************************************************************************\
  * Test
